@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <!-- Default participant profile: applied when creating with PARTICIPANT_QOS_DEFAULT -->
+  <participant profile_name="wxz_default_participant" is_default_profile="true">
+    <rtps>
+      <name>wxz_default_participant</name>
+    </rtps>
+  </participant>
+
+  <!-- Named participant profile: selected explicitly via WXZ_FASTDDS_PARTICIPANT_PROFILE -->
+  <participant profile_name="wxz_selected_participant" is_default_profile="false">
+    <rtps>
+      <name>wxz_selected_participant</name>
+    </rtps>
+  </participant>
+</profiles>

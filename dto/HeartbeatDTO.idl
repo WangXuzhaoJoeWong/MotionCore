@@ -1,0 +1,22 @@
+// HeartbeatDTO IDL definition (minimal second DTO to exercise multi-DTO guards).
+// This schema is intentionally small and append-only friendly.
+module wxz {
+  module dto {
+    struct HeartbeatDTO {
+      // 协议版本号（破坏性变更时升级）
+      unsigned long version;
+
+      // 节点/进程标识，例如 "node_container" / "workstation"
+      string node;
+
+      // 上报时间戳（Unix epoch 毫秒）
+      unsigned long long timestamp;
+
+      // 简单状态码：0=UNKNOWN, 1=HEALTHY, 2=DEGRADED, 3=UNHEALTHY
+      unsigned long state;
+
+      // 可选文本信息（用于诊断/人类可读）
+      string message;
+    };
+  };
+};

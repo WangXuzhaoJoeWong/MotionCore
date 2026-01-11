@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<profiles xmlns="http://www.eprosima.com/XMLSchemas/fastRTPS_Profiles">
+  <!--
+    Release default profiles (installed artifact).
+
+    Goals:
+    - Default is safe and broadly compatible ("just works").
+    - Provide named variants for deployments to further tighten behavior (strict) or to aid diagnosis.
+
+    Selection:
+    - Default: wxz_release_participant (is_default_profile=true)
+    - Override: export WXZ_FASTDDS_PARTICIPANT_PROFILE=<profile_name>
+  -->
+
+  <!-- Default participant profile: used when no env overrides are set. -->
+  <participant profile_name="wxz_release_participant" is_default_profile="true">
+    <rtps>
+      <name>wxz_release_participant</name>
+    </rtps>
+  </participant>
+
+  <!-- Diagnose variant: intended to be selected explicitly for troubleshooting. -->
+  <participant profile_name="wxz_release_participant_diagnose" is_default_profile="false">
+    <rtps>
+      <name>wxz_release_participant_diagnose</name>
+    </rtps>
+  </participant>
+
+  <!-- Strict variant: intended for restricted networks / hardened deployments. -->
+  <participant profile_name="wxz_release_participant_strict" is_default_profile="false">
+    <rtps>
+      <name>wxz_release_participant_strict</name>
+
+      <builtin>
+        <!-- Strict: Discovery Server client (server list sourced from ROS_DISCOVERY_SERVER). -->
+        <discovery_config>
+          <discoveryProtocol>CLIENT</discoveryProtocol>
+        </discovery_config>
+
+        <!-- Strict: avoid builtin multicast (cross-subnet / multicast-disabled friendly). -->
+        <avoid_builtin_multicast>true</avoid_builtin_multicast>
+      </builtin>
+    </rtps>
+  </participant>
+</profiles>

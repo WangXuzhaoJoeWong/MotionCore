@@ -1,0 +1,205 @@
+# WXZ Robot YAML config sample
+# Copy to config/wxz_config.yaml and edit as needed
+
+comm:
+  type: FastDDS   # FastDDS-only
+
+# 服务发现 / 注册中心配置（占位示例）
+discovery:
+  # 留空表示关闭 discovery（node_container 会跳过启动，适合离线/本机联调）
+  endpoint: ""                                    # 服务注册/拉取节点列表的 HTTP 入口
+  heartbeat_period_ms: 2000                        # 心跳上报周期（endpoint 非空才会生效）
+  ttl_ms: 6000                                     # 心跳过期时间；接收端超时剔除（兼容键：heartbeat_ttl_ms）
+  node_role: "workstation"                        # workstation / central / edge
+  node_endpoints:
+    - "fastdds:0"                                 # FastDDS 域或 profile 标识
+
+
+# cluster_control / central 节点：central role 行为配置
+central_control:
+  control_channel: control       # 订阅的控制通道名（对应 channels.<name>）
+  status_channel: status         # 发布的状态通道名（对应 channels.<name>）
+  status_message: "Running"      # 收到 control 时回发的状态文本（示例）
+  comm_poll_period_ms: 100       # 无 channels 时，fallback 到 communicator polling 的周期
+  role_override: ""              # 可选：覆盖 discovery.node_role（留空则使用 discovery.node_role 或默认 central）
+
+# 通道治理：可选的白/黑名单。若 allow 非空，仅允许名单内；deny 优先级更高。
+channel_filters:
+  allow: []
+  deny: []
+
+threading:
+  io_pool:
+    threads: 2
+  cpu_pool:
+    threads: 4
+  taskflow:
+    threads: 2
+  motion_planner:
+    threads: 2
+
+# 事件队列与调度
+queue:
+  max_size: 1024
+  high_watermark: 900
+  block_when_full: true
+  drop_oldest: true
+
+dispatcher:
+  max_retries: 2
+
+param_server:
+  enable: true
+  set_topic: param.set
+  ack_topic: param.ack
+
+# 实时模式开关（启用后默认采用同步 publish、提高 transport priority）
+realtime_mode: false
+
+# CameraService（服务层样板）：基于 FastDDS + EventDTO 的最小 req/resp。
+# - 不改变现有 workstation/central 入口 UX；camera_service 是一个独立进程。
+# - instances 支持按名称选择驱动实现（driver=mock 为内置 mock 驱动）。
+# - 若使用外部 .so 驱动，可在 registry 中声明 so + factory，并用 plugin_dirs 辅助解析。
+#
+#camera_service:
+#  enable: false
+#  # transport: fastdds|shm
+#  # - fastdds: 分布式；依赖网络/发现配置
+#  # - shm: 同机进程间 IPC（POSIX shm + semaphore），更适合本机联调
+#  transport: fastdds
+#  request_topic: svc_camera_req
+#  response_topic: svc_camera_resp
+#  active_instance: default
+#  # transport=shm 时的通道名/容量配置
+#  shm:
+#    req_name: /wxz_camera_req
+#    resp_name: /wxz_camera_resp
+#    capacity: 64
+#    slot_size: 65536
+#  # Alias: plugin_dir (single), or plugin_dirs (list)
+#  plugin_dirs:
+#    - ./plugins
+#  registry:
+#    # 示例：external_mock:
+#    #   so: libwxz_camera_mock_driver.so
+#    #   factory: createCameraDriver
+#  instances:
+#    default:
+#      driver: mock
+#      width: 640
+#      height: 480
+#      fps: 30
+#      enable_rgb: true
+
+# 通道配置示例（FastDDS / shm）
+channels:
+  # 注意：如果 channels 里使用 shm 通道，node_container 需要带参数 --create-shm
+  # 用于创建共享内存段；否则会因为 shm 段不存在而 shm_open failed。
+  # CameraService（shm）：建议使用 channels 统一管理通道（service/client 都从 ChannelRegistry 获取）
+  # - camera_service.request_topic/response_topic 对应这里的 key（svc_camera_req/svc_camera_resp）
+  svc_camera_req:
+    transport: shm
+    shm:
+      name: /wxz_camera_req
+      capacity: 64
+      slot_size: 65536
+  svc_camera_resp:
+    transport: shm
+    shm:
+      name: /wxz_camera_resp
+      capacity: 64
+      slot_size: 65536
+
+  cart_speed:
+    transport: fastdds
+    domain: 0
+    topic: cart_speed
+    max_payload: 2048
+    qos:
+      reliability: reliable
+      history: keep_last
+      depth: 8
+      deadline_ns: 40000000       # 40 ms
+      latency_budget_ns: 10000000 # 10 ms
+      durability: volatile_kind
+      liveliness: automatic
+      ownership: shared
+      ownership_strength: 0
+      transport_priority: 50
+      async_publish: false
+      realtime_hint: true
+  demo_raw:
+    transport: fastdds
+    domain: 0
+    topic: demo/raw
+    qos:
+      reliability: reliable          # best_effort|reliable
+      history: keep_last             # keep_last|keep_all
+      depth: 16
+      durability: transient_local    # volatile_kind|transient_local
+      liveliness: manual_by_topic    # automatic|manual_by_topic
+      latency_budget_ns: 2000000
+      deadline_ns: 5000000
+      lifespan_ns: 100000000
+      time_based_filter_ns: 2000000
+      ownership: shared              # shared|exclusive
+      ownership_strength: 0          # only for exclusive
+      transport_priority: 32
+      async_publish: true
+      realtime_hint: true
+  control:
+    transport: fastdds
+    domain: 0
+    topic: control
+    qos:
+      reliability: reliable
+      history: keep_last
+      depth: 8
+      latency_budget_ns: 1000000
+      deadline_ns: 5000000
+  status:
+    transport: fastdds
+    domain: 0
+    topic: status
+    qos:
+      reliability: best_effort
+      history: keep_last
+      depth: 4
+  telemetry:
+    transport: fastdds
+    domain: 0
+    topic: telemetry
+    qos:
+      reliability: reliable
+      history: keep_last
+      depth: 8
+
+  # ===== Business node plugin templates chain =====
+  # template_camera_node_plugin  : publish -> camera.pointcloud
+  # template_vision_node_plugin  : sub camera.pointcloud, pub -> vision.pose
+  # template_planner_node_plugin : sub vision.pose, pub -> planner.trajectory
+  # template_arm_node_plugin     : sub planner.trajectory, pub -> arm.status
+  camera.pointcloud:
+    transport: shm
+    shm:
+      name: /wxz_camera_pointcloud
+      capacity: 64
+      slot_size: 65536
+  vision.pose:
+    transport: shm
+    shm:
+      name: /wxz_vision_pose
+      capacity: 128
+      slot_size: 4096
+  planner.trajectory:
+    transport: shm
+    shm:
+      name: /wxz_planner_trajectory
+      capacity: 64
+      slot_size: 16384
+  arm.status:
+    transport: shm
+    shm:
+      name: /wxz_arm_status
+      capacity: 64
+      slot_size: 4096

@@ -1,0 +1,17 @@
+# Build & install outputs
+build/
+_install/
+
+# CMake
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+
+# IDE
+.vscode/
+
+# OS
+.DS_Store

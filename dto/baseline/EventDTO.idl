@@ -1,0 +1,29 @@
+// Baseline (published) IDL snapshot for backward-compat checks.
+// Source: dto/EventDTO.idl
+// Update policy: see docs/dto/DTO_IDL_兼容性策略与变更记录.md
+module wxz {
+  module dto {
+    struct EventDTO {
+      // 协议版本号，用于破坏性变更时升级（例如 1 -> 2）
+      unsigned long version;
+
+      // 业务事件 schema，例如 "ws.detection.v1"
+      string schema_id;
+
+      // 逻辑 topic 名（用于路由和归类）
+      string topic;
+
+      // 业务负载，推荐格式："key=value;key2=value2" 或 JSON
+      string payload;
+
+      // 事件发生时间戳（Unix epoch 毫秒），用于审计与链路追踪
+      unsigned long long timestamp;
+
+      // 事件唯一标识，用于去重与追踪；可以是 UUID 或 "ts-random" 形式
+      string event_id;
+
+      // 事件来源标识，例如 "rw_luggage_workstation"、"sensor_gateway"
+      string source;
+    };
+  };
+};

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<profiles>
+  <participant profile_name="default_participant" is_default_profile="true">
+    <rtps>
+      <builtin>
+        <initialPeersList>
+          <!-- Single-host unicast for local testing -->
+          <address>127.0.0.1</address>
+        </initialPeersList>
+        <metatrafficUnicastLocatorList>
+          <locator>
+            <udpv4>
+              <address>127.0.0.1</address>
+              <port>7411</port>
+            </udpv4>
+          </locator>
+        </metatrafficUnicastLocatorList>
+        <use_SIMPLE_RTPS_PDP>true</use_SIMPLE_RTPS_PDP>
+        <use_STATIC_EndpointDiscoveryProtocol>false</use_STATIC_EndpointDiscoveryProtocol>
+      </builtin>
+      <domainId>0</domainId>
+    </rtps>
+  </participant>
+</profiles>

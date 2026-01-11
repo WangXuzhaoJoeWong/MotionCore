@@ -1,0 +1,108 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+BUILD_DIR="@CMAKE_BINARY_DIR@"
+DEFAULT_PREFIX="/opt/MotionCore"
+
+usage() {
+  cat <<'EOF'
+Usage: ./install.sh [--prefix <dir>] [--no-sudo] [--with-docs]
+
+Installs MotionCore into the given prefix.
+Default prefix: /opt/MotionCore
+
+Examples:
+  ./install.sh
+  ./install.sh --prefix /opt/MotionCore
+  ./install.sh --prefix "$HOME/.local/MotionCore"
+  ./install.sh --with-docs
+EOF
+}
+
+prefix="$DEFAULT_PREFIX"
+use_sudo=1
+with_docs=0
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --prefix)
+      prefix="$2"
+      shift 2
+      ;;
+    --no-sudo)
+      use_sudo=0
+      shift
+      ;;
+    --with-docs)
+      with_docs=1
+      shift
+      ;;
+    -h|--help)
+      usage
+      exit 0
+      ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage >&2
+      exit 2
+      ;;
+  esac
+done
+
+if [[ ! -d "$BUILD_DIR" ]]; then
+  echo "Build directory not found: $BUILD_DIR" >&2
+  echo "Hint: re-configure to regenerate install.sh." >&2
+  exit 1
+fi
+
+cmake_cmd="cmake"
+if ! command -v "$cmake_cmd" >/dev/null 2>&1; then
+  echo "cmake not found in PATH" >&2
+  exit 1
+fi
+
+need_root=0
+if [[ "$prefix" == /opt/* || "$prefix" == /usr/* || "$prefix" == /lib* || "$prefix" == /etc* ]]; then
+  need_root=1
+fi
+
+install_one() {
+  local component="$1"
+  local cmd=("$cmake_cmd" --install "$BUILD_DIR" --prefix "$prefix" --component "$component")
+
+  if [[ $need_root -eq 1 && $EUID -ne 0 && $use_sudo -eq 1 ]]; then
+    if command -v sudo >/dev/null 2>&1; then
+      echo "+ sudo ${cmd[*]}"
+      sudo "${cmd[@]}"
+    else
+      echo "Need root privileges to install to: $prefix" >&2
+      echo "Run as root or re-run with --prefix to a user-writable directory." >&2
+      exit 1
+    fi
+  else
+    echo "+ ${cmd[*]}"
+    "${cmd[@]}"
+  fi
+}
+
+install_one runtime-core
+install_one dev
+if [[ $with_docs -eq 1 ]]; then
+  install_one docs
+fi
+
+cat <<EOF
+
+Installed MotionCore to: $prefix
+
+Installed components:
+  - runtime-core
+  - dev
+  - docs: $( [[ $with_docs -eq 1 ]] && echo yes || echo no )
+
+For CMake consumers:
+  -D CMAKE_PREFIX_PATH=$prefix
+  find_package(MotionCore CONFIG REQUIRED)
+  target_link_libraries(your_target PRIVATE MotionCore::MotionCore)
+
+EOF

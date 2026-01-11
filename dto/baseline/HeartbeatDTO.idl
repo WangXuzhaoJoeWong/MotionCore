@@ -1,0 +1,13 @@
+// Baseline snapshot for HeartbeatDTO (initial publish).
+// Keep this file as the published reference for backward-compat checks.
+module wxz {
+  module dto {
+    struct HeartbeatDTO {
+      unsigned long version;
+      string node;
+      unsigned long long timestamp;
+      unsigned long state;
+      string message;
+    };
+  };
+};
