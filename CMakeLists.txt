@@ -7,6 +7,8 @@ cmake_minimum_required(VERSION 3.16)
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     project(MotionCore LANGUAGES C CXX)
 
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile_commands.json" FORCE)
+
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
     set(CMAKE_CXX_STANDARD 17)
@@ -24,18 +26,29 @@ if(CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR)
     option(WXZ_INSTALL_DEV "Install headers and CMake package config" ON)
 else()
     # As a subproject, options/variables are expected to be set by the parent.
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Export compile_commands.json" FORCE)
     if(NOT DEFINED WXZ_INSTALL_DOCS)
         set(WXZ_INSTALL_DOCS ON)
     endif()
     if(NOT DEFINED WXZ_INSTALL_DEV)
         set(WXZ_INSTALL_DEV ON)
     endif()
+
 endif()
 
 set(WXZ_MOTIONCORE_DIR "${CMAKE_CURRENT_LIST_DIR}")
 
+# Repository root (mono-repo) helper.
+get_filename_component(WXZ_REPO_ROOT "${WXZ_MOTIONCORE_DIR}" DIRECTORY)
+
 include(GNUInstallDirs)
 include(CMakePackageConfigHelpers)
+
+# Local developer workflow: install into the build directory by default.
+# This avoids creating an extra "_install" folder and keeps MotionCore/Workstation independent.
+if(CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
+    set(CMAKE_INSTALL_PREFIX "${CMAKE_BINARY_DIR}" CACHE PATH "Install prefix (default: build directory)" FORCE)
+endif()
 
 # Install layout (Option A: MotionCore as the primary namespace)
 if(NOT DEFINED WXZ_INSTALL_INCLUDEDIR)
@@ -95,33 +108,68 @@ if(ENABLE_FCL)
     endif()
 endif()
 
-# FastDDS (fastcdr + fastrtps). When used as a subproject, the parent may have
-# already resolved these; only resolve if missing.
-set(_wxz_fastdds_hint_paths
-    /usr/local
-    /usr/local/lib
-    /usr/local/lib/cmake
-    /usr/local/share/fastrtps/cmake
-    /usr/local/share/fastcdr/cmake
-    /usr/local/lib/cmake/fastcdr
-    /usr/lib/x86_64-linux-gnu/cmake/fastcdr
-    /usr/lib/x86_64-linux-gnu/cmake
-    $ENV{FASTDDS_ROOT}
-    $ENV{FASTDDS_PREFIX}
+# Fast-DDS (Fast-RTPS: fastrtps + Fast-CDR: fastcdr)
+# Policy: pin to the repository-managed Fast-DDS v2.14.4. Builds must not
+# silently pick up conflicting system installations.
+
+set(WXZ_FASTDDS_VERSION "2.14.4")
+set(WXZ_FASTCDR_VERSION "2.2.0")
+
+set(_wxz_pinned_fastdds_prefix "${WXZ_REPO_ROOT}/depends/eprosima_fastdds/v${WXZ_FASTDDS_VERSION}/_install")
+
+if(NOT DEFINED WXZ_FASTDDS_PREFIX OR "${WXZ_FASTDDS_PREFIX}" STREQUAL "")
+    if(EXISTS "${_wxz_pinned_fastdds_prefix}")
+        set(WXZ_FASTDDS_PREFIX "${_wxz_pinned_fastdds_prefix}" CACHE PATH "Pinned Fast-DDS prefix (v${WXZ_FASTDDS_VERSION})" FORCE)
+    else()
+        set(WXZ_FASTDDS_PREFIX "" CACHE PATH "Pinned Fast-DDS prefix (v${WXZ_FASTDDS_VERSION})" FORCE)
+    endif()
+endif()
+
+if(NOT EXISTS "${WXZ_FASTDDS_PREFIX}")
+    message(FATAL_ERROR
+        "Pinned Fast-DDS prefix not found.\n"
+        "Expected: ${_wxz_pinned_fastdds_prefix}\n"
+        "Please ensure Fast-DDS v${WXZ_FASTDDS_VERSION} (and Fast-CDR v${WXZ_FASTCDR_VERSION}) is installed into that directory."
+    )
+endif()
+
+set(_wxz_fastcdr_hint_paths
+    "${WXZ_FASTDDS_PREFIX}/lib/cmake/fastcdr"
+    "${WXZ_FASTDDS_PREFIX}/lib64/cmake/fastcdr"
+    "${WXZ_FASTDDS_PREFIX}/lib/cmake"
+    "${WXZ_FASTDDS_PREFIX}/lib64/cmake"
+    "${WXZ_FASTDDS_PREFIX}"
+)
+
+set(_wxz_fastrtps_hint_paths
+    "${WXZ_FASTDDS_PREFIX}/share/fastrtps/cmake"
+    "${WXZ_FASTDDS_PREFIX}/lib/cmake/fastrtps"
+    "${WXZ_FASTDDS_PREFIX}/lib64/cmake/fastrtps"
+    "${WXZ_FASTDDS_PREFIX}/lib/cmake"
+    "${WXZ_FASTDDS_PREFIX}/lib64/cmake"
+    "${WXZ_FASTDDS_PREFIX}"
 )
 
 if(NOT TARGET fastcdr AND NOT TARGET fastcdr::fastcdr)
-    find_package(fastcdr REQUIRED CONFIG
-        PATHS ${_wxz_fastdds_hint_paths}
+    find_package(fastcdr ${WXZ_FASTCDR_VERSION} EXACT REQUIRED CONFIG
+        PATHS ${_wxz_fastcdr_hint_paths}
         NO_DEFAULT_PATH
     )
 endif()
 
+if(DEFINED fastcdr_DIR AND NOT "${fastcdr_DIR}" MATCHES "^${WXZ_FASTDDS_PREFIX}(/|$)")
+    message(FATAL_ERROR "fastcdr_DIR must be under WXZ_FASTDDS_PREFIX. fastcdr_DIR=${fastcdr_DIR} WXZ_FASTDDS_PREFIX=${WXZ_FASTDDS_PREFIX}")
+endif()
+
 if(NOT TARGET fastrtps AND NOT TARGET FastRTPS::fastrtps)
-    find_package(fastrtps 2.6 REQUIRED CONFIG
-        PATHS ${_wxz_fastdds_hint_paths}
+    find_package(fastrtps ${WXZ_FASTDDS_VERSION} EXACT REQUIRED CONFIG
+        PATHS ${_wxz_fastrtps_hint_paths}
         NO_DEFAULT_PATH
     )
+endif()
+
+if(DEFINED fastrtps_DIR AND NOT "${fastrtps_DIR}" MATCHES "^${WXZ_FASTDDS_PREFIX}(/|$)")
+    message(FATAL_ERROR "fastrtps_DIR must be under WXZ_FASTDDS_PREFIX. fastrtps_DIR=${fastrtps_DIR} WXZ_FASTDDS_PREFIX=${WXZ_FASTDDS_PREFIX}")
 endif()
 
 if(NOT DEFINED FASTDDS_LIBRARIES OR "${FASTDDS_LIBRARIES}" STREQUAL "")
@@ -150,7 +198,10 @@ endif()
 set(WXZ_SOURCES
     src/logger.cpp
     src/observability.cpp
+    src/clock.cpp
+    src/time_sync.cpp
     src/metrics_prometheus.cpp
+    src/metrics_http_server.cpp
     src/config.cpp
     src/param_server_public.cpp
     src/param_server_distributed.cpp
@@ -166,10 +217,13 @@ set(WXZ_SOURCES
     src/inproc_channel.cpp
     src/shm_channel.cpp
     src/fastdds_channel.cpp
+    src/byte_buffer_pool.cpp
     src/fastdds_participant_factory.cpp
     src/dds_security_precheck.cpp
     src/channel_registry.cpp
     src/channel_factory.cpp
+    src/rpc_service.cpp
+    src/rpc_client.cpp
     src/dto_core.cpp
     src/event_dto_utils.cpp
     src/event_dto_cdr.cpp
@@ -289,6 +343,14 @@ install(EXPORT MotionCoreTargets
     COMPONENT dev
 )
 
+# Also export a build-tree targets file so that using
+#   -DCMAKE_PREFIX_PATH=<MotionCore/build>
+# works even before/without installing to a separate prefix.
+export(EXPORT MotionCoreTargets
+    FILE "${CMAKE_BINARY_DIR}/cmake/MotionCoreTargets.cmake"
+    NAMESPACE MotionCore::
+)
+
 if(WXZ_INSTALL_DEV)
     # Strict public header whitelist for downstream consumers.
     # Public headers are flattened under MotionCore/include/ (no MotionCore/ subdir).
@@ -345,10 +407,9 @@ configure_file(
     @ONLY
 )
 
-add_custom_target(motioncore_install_sh ALL
-    COMMAND chmod +x ${CMAKE_BINARY_DIR}/install.sh
-    BYPRODUCTS ${CMAKE_BINARY_DIR}/install.sh
-)
+if(UNIX)
+    execute_process(COMMAND chmod +x "${CMAKE_BINARY_DIR}/install.sh")
+endif()
 
 if(WXZ_INSTALL_DEV)
     install(FILES ${CMAKE_BINARY_DIR}/cmake/MotionCoreConfig.cmake

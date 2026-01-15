@@ -4,22 +4,10 @@ include(CMakeFindDependencyMacro)
 find_dependency(Threads)
 find_dependency(nlohmann_json CONFIG)
 
-# Prefer a compatible fastcdr package config (commonly v1 from system packages).
-# Some machines also have a newer fastcdr installed under /usr/local which may
-# be ABI-incompatible with the fastrtps binary.
-set(_wxz_system_fastcdr_dir "/usr/lib/x86_64-linux-gnu/cmake/fastcdr")
-if(NOT DEFINED fastcdr_DIR)
-	if(EXISTS "${_wxz_system_fastcdr_dir}/fastcdr-config.cmake" OR EXISTS "${_wxz_system_fastcdr_dir}/fastcdrConfig.cmake")
-		set(fastcdr_DIR "${_wxz_system_fastcdr_dir}")
-	endif()
-elseif(fastcdr_DIR MATCHES "^/usr/local" AND EXISTS "${_wxz_system_fastcdr_dir}/fastcdr-config.cmake")
-	set(fastcdr_DIR "${_wxz_system_fastcdr_dir}")
-endif()
-
-# Resolve fastcdr before fastrtps to avoid target collisions that can lock in an
-# ABI-incompatible fastcdr.
-find_dependency(fastcdr CONFIG)
-find_dependency(fastrtps CONFIG)
+# Require ABI-compatible eProsima deps (pinned).
+# The core repo pins Fast-DDS to v2.14.4 (fastrtps=2.14.4, fastcdr=2.2.0).
+find_dependency(fastcdr 2.2.0 EXACT CONFIG)
+find_dependency(fastrtps 2.14.4 EXACT CONFIG)
 
 include("${CMAKE_CURRENT_LIST_DIR}/MotionCoreTargets.cmake")
 

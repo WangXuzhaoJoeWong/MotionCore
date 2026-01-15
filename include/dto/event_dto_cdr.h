@@ -17,4 +17,6 @@ bool encode_event_dto_cdr(const ::EventDTO& dto,
 
 bool decode_event_dto_cdr(const std::vector<std::uint8_t>& buf, ::EventDTO& out);
 
+bool decode_event_dto_cdr(const std::uint8_t* data, std::size_t size, ::EventDTO& out);
+
 } // namespace wxz::dto

@@ -145,6 +145,7 @@ private:
 class CdrDeserializer : public Deserializer {
 public:
     explicit CdrDeserializer(const std::vector<uint8_t> &buf);
+    CdrDeserializer(const uint8_t* data, size_t size);
     bool read_uint32(uint32_t &v) override;
     bool read_uint64(uint64_t &v) override;
     bool read_int32(int32_t &v) override;
@@ -155,9 +156,10 @@ public:
     bool read_double(double &v) override;
     bool read_string(std::string &v) override;
     bool read_bytes(std::vector<uint8_t> &v) override;
-    bool eof() const override { return offset_ >= buf_.size(); }
+    bool eof() const override { return offset_ >= size_; }
 private:
-    const std::vector<uint8_t> &buf_;
+    const uint8_t* data_{nullptr};
+    size_t size_{0};
     size_t offset_{0};
 };
 

@@ -435,10 +435,12 @@ bool CdrSerializer::write_bytes(const std::vector<uint8_t> &v) {
     return false;
 }
 
-CdrDeserializer::CdrDeserializer(const std::vector<uint8_t> &buf) : buf_(buf) {}
+CdrDeserializer::CdrDeserializer(const std::vector<uint8_t> &buf) : data_(buf.data()), size_(buf.size()) {}
+
+CdrDeserializer::CdrDeserializer(const uint8_t* data, size_t size) : data_(data), size_(size) {}
 
 bool CdrDeserializer::read_uint32(uint32_t &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -451,7 +453,7 @@ bool CdrDeserializer::read_uint32(uint32_t &v) {
 }
 
 bool CdrDeserializer::read_uint64(uint64_t &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -464,7 +466,7 @@ bool CdrDeserializer::read_uint64(uint64_t &v) {
 }
 
 bool CdrDeserializer::read_int32(int32_t &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -477,7 +479,7 @@ bool CdrDeserializer::read_int32(int32_t &v) {
 }
 
 bool CdrDeserializer::read_int64(int64_t &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -490,7 +492,7 @@ bool CdrDeserializer::read_int64(int64_t &v) {
 }
 
 bool CdrDeserializer::read_bool(bool &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -503,7 +505,7 @@ bool CdrDeserializer::read_bool(bool &v) {
 }
 
 bool CdrDeserializer::read_uint8(uint8_t &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -516,7 +518,7 @@ bool CdrDeserializer::read_uint8(uint8_t &v) {
 }
 
 bool CdrDeserializer::read_float(float &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -529,7 +531,7 @@ bool CdrDeserializer::read_float(float &v) {
 }
 
 bool CdrDeserializer::read_double(double &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -542,7 +544,7 @@ bool CdrDeserializer::read_double(double &v) {
 }
 
 bool CdrDeserializer::read_string(std::string &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {
@@ -555,7 +557,7 @@ bool CdrDeserializer::read_string(std::string &v) {
 }
 
 bool CdrDeserializer::read_bytes(std::vector<uint8_t> &v) {
-    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(buf_.data())), buf_.size());
+    eprosima::fastcdr::FastBuffer fb(reinterpret_cast<char *>(const_cast<uint8_t *>(data_)), size_);
     eprosima::fastcdr::Cdr cdr(fb);
     cdr.jump(offset_);
     try {

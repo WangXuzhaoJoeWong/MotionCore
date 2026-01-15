@@ -2,6 +2,7 @@
 
 #include "service_common.h"
 #include "observability.h"
+#include "executor.h"
 
 #include <cstring>
 #include <filesystem>
@@ -36,6 +37,27 @@ void FaultRecoveryExecutor::start() {
     metrics().counter_add("wxz_fault_recovery_actions_total", 0.0, {{"action", "restart"}});
 
     sub_token_ = sub_->subscribe_scoped(
+        [this](const std::uint8_t* data, std::size_t size) { handle_message(data, size); },
+        this);
+}
+
+void FaultRecoveryExecutor::start_on(Executor& ex) {
+    bool expected = false;
+    if (!started_.compare_exchange_strong(expected, true)) return;
+
+    ChannelQoS qos = default_reliable_qos();
+    qos.history = 16;
+
+    constexpr std::size_t kMaxPayload = 4096;
+    sub_ = std::make_unique<FastddsChannel>(domain_, topic_, qos, kMaxPayload, /*enable_pub=*/false, /*enable_sub=*/true);
+
+    // Pre-register minimal metrics so /metrics has stable keys.
+    metrics().gauge_set("wxz_fault_recovery_enabled", 1.0, {});
+    metrics().counter_add("wxz_fault_recovery_actions_total", 0.0, {{"action", "degrade"}});
+    metrics().counter_add("wxz_fault_recovery_actions_total", 0.0, {{"action", "restart"}});
+
+    sub_token_ = sub_->subscribe_scoped_on(
+        ex,
         [this](const std::uint8_t* data, std::size_t size) { handle_message(data, size); },
         this);
 }

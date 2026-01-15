@@ -1,6 +1,6 @@
 // Baseline (published) IDL snapshot for backward-compat checks.
 // Source: dto/EventDTO.idl
-// Update policy: see docs/dto/DTO_IDL_兼容性策略与变更记录.md
+// Update policy: see docs/dto/README.md
 module wxz {
   module dto {
     struct EventDTO {

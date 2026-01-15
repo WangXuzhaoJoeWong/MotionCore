@@ -1,13 +1,17 @@
 #include "internal/fastdds_participant_factory.h"
 
+#include "logger.h"
+
 #include <fastdds/dds/domain/DomainParticipant.hpp>
 #include <fastdds/dds/domain/DomainParticipantFactory.hpp>
 #include <fastdds/dds/domain/qos/DomainParticipantQos.hpp>
 
 #include <fastdds/rtps/attributes/ServerAttributes.h>
+#include <fastdds/rtps/transport/UDPv4TransportDescriptor.h>
 
 #include <cstdlib>
 #include <fstream>
+#include <memory>
 #include <mutex>
 #include <stdexcept>
 #include <string>
@@ -83,6 +87,68 @@ std::string default_profiles_path_from_install_prefix() {
     return std::string();
 }
 
+bool env_truthy(const char* key) {
+    const char* v = std::getenv(key);
+    if (!v || !*v) return false;
+    return (std::string(v) == "1" || std::string(v) == "true" || std::string(v) == "TRUE" || std::string(v) == "yes" || std::string(v) == "YES");
+}
+
+void log_transport_cfg(int domain_id,
+                       const char* phase,
+                       const eprosima::fastdds::dds::DomainParticipantQos& qos,
+                       bool disable_shm_env,
+                       bool force_udp_env) {
+    using wxz::core::Logger;
+    const auto builtin = qos.transport().use_builtin_transports;
+    const auto user_n = qos.transport().user_transports.size();
+    Logger::getInstance().info(std::string("FastDDS participant transport") +
+                               " phase=" + phase +
+                               " domain=" + std::to_string(domain_id) +
+                               " use_builtin_transports=" + (builtin ? "1" : "0") +
+                               " user_transports=" + std::to_string(user_n) +
+                               " env_disable_shm=" + (disable_shm_env ? "1" : "0") +
+                               " env_force_udp_only=" + (force_udp_env ? "1" : "0"));
+}
+
+void apply_udp_only_transport(eprosima::fastdds::dds::DomainParticipantQos& qos) {
+    using namespace eprosima::fastdds::rtps;
+    qos.transport().use_builtin_transports = false;
+    qos.transport().user_transports.clear();
+    auto udp = std::make_shared<UDPv4TransportDescriptor>();
+    qos.transport().user_transports.push_back(udp);
+}
+
+eprosima::fastdds::dds::DomainParticipant* create_participant_with_fallback(
+    int domain_id,
+    eprosima::fastdds::dds::DomainParticipantFactory* factory,
+    eprosima::fastdds::dds::DomainParticipantQos qos) {
+    using namespace eprosima::fastdds::dds;
+
+    const bool disable_shm_env = env_truthy("WXZ_FASTDDS_DISABLE_SHM");
+    const bool force_udp_env = env_truthy("WXZ_FASTDDS_FORCE_UDP_ONLY");
+    const bool force_udp_only = disable_shm_env || force_udp_env;
+    if (force_udp_only) {
+        apply_udp_only_transport(qos);
+    }
+
+    log_transport_cfg(domain_id, force_udp_only ? "precreate_udp_only" : "precreate_default", qos, disable_shm_env, force_udp_env);
+
+    try {
+        return factory->create_participant(domain_id, qos, nullptr, StatusMask::none());
+    } catch (const std::bad_alloc&) {
+        // FastDDS SharedMemTransport can throw std::bad_alloc when shared-memory resources
+        // cannot be allocated/opened. Provide a best-effort fallback to UDP-only transports.
+        if (force_udp_only) throw;
+
+        wxz::core::Logger::getInstance().warn(
+            std::string("FastDDS participant create threw std::bad_alloc; retrying with UDP-only transports") +
+            " domain=" + std::to_string(domain_id));
+        apply_udp_only_transport(qos);
+        log_transport_cfg(domain_id, "fallback_udp_only", qos, disable_shm_env, force_udp_env);
+        return factory->create_participant(domain_id, qos, nullptr, StatusMask::none());
+    }
+}
+
 } // namespace
 
 void load_fastdds_profiles_from_env_once() {
@@ -126,6 +192,12 @@ void load_fastdds_profiles_from_env_once() {
         participant_profile = v;
     }
 
+    wxz::core::Logger::getInstance().info(std::string("FastDDS participant config") +
+                                         " domain=" + std::to_string(domain_id) +
+                                         " profile=" + (participant_profile.empty() ? "<auto>" : participant_profile) +
+                                         " profiles_env_file=" + (profiles_state().used_env_file ? "1" : "0") +
+                                         " profiles_default_file=" + (profiles_state().used_default_file ? "1" : "0"));
+
     if (participant_profile == kStrictParticipantProfile) {
         const char* ros_ds = std::getenv("ROS_DISCOVERY_SERVER");
         if (!ros_ds || !*ros_ds) {
@@ -139,8 +211,8 @@ void load_fastdds_profiles_from_env_once() {
 
     if (!participant_profile.empty()) {
         // Pre-check profile existence to keep failure explicit and reduce noisy logs.
-        DomainParticipantQos tmp_qos;
-        const auto ret = factory->get_participant_qos_from_profile(participant_profile, tmp_qos);
+        DomainParticipantQos qos;
+        const auto ret = factory->get_participant_qos_from_profile(participant_profile, qos);
         if (ret != eprosima::fastrtps::types::ReturnCode_t::RETCODE_OK) {
             throw std::runtime_error("FastDDS participant profile not found: " + participant_profile);
         }
@@ -148,20 +220,6 @@ void load_fastdds_profiles_from_env_once() {
         // Strict profile: force Discovery Server client behavior, sourcing the remote server list from
         // ROS_DISCOVERY_SERVER. This avoids relying on implicit SIMPLE->CLIENT conversion.
         if (participant_profile == kStrictParticipantProfile) {
-            const char* ros_ds = std::getenv("ROS_DISCOVERY_SERVER");
-            if (!ros_ds || !*ros_ds) {
-                throw std::runtime_error(
-                    "WXZ_FASTDDS_PARTICIPANT_PROFILE=wxz_release_participant_strict requires ROS_DISCOVERY_SERVER to be set "
-                    "(e.g. '127.0.0.1:11811' or '10.0.0.1:11811;10.0.0.2:11811').");
-            }
-
-            DomainParticipantQos qos;
-            const auto qos_ret = factory->get_participant_qos_from_profile(participant_profile, qos);
-            if (qos_ret != eprosima::fastrtps::types::ReturnCode_t::RETCODE_OK) {
-                throw std::runtime_error("FastDDS participant profile not found: " + participant_profile);
-            }
-
-            // Populate discovery server list from env, so strict profile can use CLIENT protocol explicitly.
             auto& servers = qos.wire_protocol().builtin.discovery_config.m_DiscoveryServers;
             if (servers.empty()) {
                 (void)eprosima::fastrtps::rtps::load_environment_server_info(servers);
@@ -171,25 +229,24 @@ void load_fastdds_profiles_from_env_once() {
                     "ROS_DISCOVERY_SERVER did not yield any Discovery Server locators; please set it to a non-empty "
                     "semicolon-separated list like '10.0.0.1:11811;10.0.0.2:11811'.");
             }
-
-            return factory->create_participant(domain_id, qos, nullptr, StatusMask::none());
         }
 
-        return factory->create_participant_with_profile(domain_id, participant_profile, nullptr, StatusMask::none());
+        return create_participant_with_fallback(domain_id, factory, qos);
     }
 
     // No explicit participant profile. If we loaded install-tree release defaults, pick the known default profile.
     if (profiles_state().used_default_file && !profiles_state().used_env_file) {
-        DomainParticipantQos tmp_qos;
-        const auto ret = factory->get_participant_qos_from_profile(kDefaultParticipantProfile, tmp_qos);
+        DomainParticipantQos qos;
+        const auto ret = factory->get_participant_qos_from_profile(kDefaultParticipantProfile, qos);
         if (ret == eprosima::fastrtps::types::ReturnCode_t::RETCODE_OK) {
-            return factory->create_participant_with_profile(domain_id, kDefaultParticipantProfile, nullptr, StatusMask::none());
+            return create_participant_with_fallback(domain_id, factory, qos);
         }
         // Fall through if profile not found for any reason.
     }
 
     // Let XML default profile (if any) apply.
-    return factory->create_participant(domain_id, PARTICIPANT_QOS_DEFAULT, nullptr, StatusMask::none());
+    DomainParticipantQos qos = PARTICIPANT_QOS_DEFAULT;
+    return create_participant_with_fallback(domain_id, factory, qos);
 }
 
 } // namespace wxz::core::internal

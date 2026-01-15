@@ -25,15 +25,6 @@ discovery:
   node_endpoints:
     - "fastdds:0"                                 # FastDDS 域或 profile 标识
 
-
-# cluster_control / central 节点：central role 行为配置
-central_control:
-  control_channel: control       # 订阅的控制通道名（对应 channels.<name>）
-  status_channel: status         # 发布的状态通道名（对应 channels.<name>）
-  status_message: "Running"      # 收到 control 时回发的状态文本（示例）
-  comm_poll_period_ms: 100       # 无 channels 时，fallback 到 communicator polling 的周期
-  role_override: ""              # 可选：覆盖 discovery.node_role（留空则使用 discovery.node_role 或默认 central）
-
 # 通道治理：可选的白/黑名单。若 allow 非空，仅允许名单内；deny 优先级更高。
 channel_filters:
   allow: []
@@ -91,150 +82,47 @@ param_server:
 # 实时模式开关（启用后默认采用同步 publish、提高 transport priority）
 realtime_mode: false
 
-# CameraService（服务层样板）：基于 FastDDS + EventDTO 的最小 req/resp。
-# - 不改变现有 workstation/central 入口 UX；camera_service 是一个独立进程。
-# - instances 支持按名称选择驱动实现（driver=mock 为内置 mock 驱动）。
-# - 若使用外部 .so 驱动，可在 registry 中声明 so + factory，并用 plugin_dirs 辅助解析。
-#
-#camera_service:
-#  enable: false
-#  # transport: fastdds|shm
-#  # - fastdds: 分布式；依赖网络/发现配置
-#  # - shm: 同机进程间 IPC（POSIX shm + semaphore），更适合本机联调
-#  transport: fastdds
-#  request_topic: svc_camera_req
-#  response_topic: svc_camera_resp
-#  active_instance: default
-#  # transport=shm 时的通道名/容量配置
-#  shm:
-#    req_name: /wxz_camera_req
-#    resp_name: /wxz_camera_resp
-#    capacity: 64
-#    slot_size: 65536
-#  # Alias: plugin_dir (single), or plugin_dirs (list)
-#  plugin_dirs:
-#    - ./plugins
-#  registry:
-#    # 示例：external_mock:
-#    #   so: libwxz_camera_mock_driver.so
-#    #   factory: createCameraDriver
-#  instances:
-#    default:
-#      driver: mock
-#      width: 640
-#      height: 480
-#      fps: 30
-#      enable_rgb: true
-
 # 通道配置示例（FastDDS / shm）
 channels:
-  # 注意：如果 channels 里使用 shm 通道，node_container 需要带参数 --create-shm
-  # 用于创建共享内存段；否则会因为 shm 段不存在而 shm_open failed。
-  # CameraService（shm）：建议使用 channels 统一管理通道（service/client 都从 ChannelRegistry 获取）
-  # - camera_service.request_topic/response_topic 对应这里的 key（svc_camera_req/svc_camera_resp）
-  svc_camera_req:
-    transport: shm
-    shm:
-      name: /wxz_camera_req
-      capacity: 64
-      slot_size: 65536
-  svc_camera_resp:
-    transport: shm
-    shm:
-      name: /wxz_camera_resp
-      capacity: 64
-      slot_size: 65536
+  # 当前业务建议：按 Workstation 实际 topic 做最小集合。
+  # 注意：domain 必须与现场 `WXZ_DOMAIN_ID` 保持一致。
 
-  cart_speed:
+  ws_arm_command:
     transport: fastdds
     domain: 0
-    topic: cart_speed
-    max_payload: 2048
-    qos:
-      reliability: reliable
-      history: keep_last
-      depth: 8
-      deadline_ns: 40000000       # 40 ms
-      latency_budget_ns: 10000000 # 10 ms
-      durability: volatile_kind
-      liveliness: automatic
-      ownership: shared
-      ownership_strength: 0
-      transport_priority: 50
-      async_publish: false
-      realtime_hint: true
-  demo_raw:
-    transport: fastdds
-    domain: 0
-    topic: demo/raw
+    topic: /arm/command
+    max_payload: 8192
     qos:
       reliability: reliable          # best_effort|reliable
       history: keep_last             # keep_last|keep_all
       depth: 16
-      durability: transient_local    # volatile_kind|transient_local
-      liveliness: manual_by_topic    # automatic|manual_by_topic
-      latency_budget_ns: 2000000
-      deadline_ns: 5000000
-      lifespan_ns: 100000000
-      time_based_filter_ns: 2000000
-      ownership: shared              # shared|exclusive
-      ownership_strength: 0          # only for exclusive
-      transport_priority: 32
-      async_publish: true
-      realtime_hint: true
-  control:
+
+  ws_arm_status:
     transport: fastdds
     domain: 0
-    topic: control
-    qos:
-      reliability: reliable
-      history: keep_last
-      depth: 8
-      latency_budget_ns: 1000000
-      deadline_ns: 5000000
-  status:
-    transport: fastdds
-    domain: 0
-    topic: status
+    topic: /arm/status
+    max_payload: 8192
     qos:
       reliability: best_effort
       history: keep_last
-      depth: 4
-  telemetry:
+      depth: 32
+
+  ws_system_alert:
     transport: fastdds
     domain: 0
-    topic: telemetry
+    topic: /system/alert
+    max_payload: 8192
     qos:
       reliability: reliable
       history: keep_last
-      depth: 8
+      depth: 16
 
-  # ===== Business node plugin templates chain =====
-  # template_camera_node_plugin  : publish -> camera.pointcloud
-  # template_vision_node_plugin  : sub camera.pointcloud, pub -> vision.pose
-  # template_planner_node_plugin : sub vision.pose, pub -> planner.trajectory
-  # template_arm_node_plugin     : sub planner.trajectory, pub -> arm.status
-  camera.pointcloud:
-    transport: shm
-    shm:
-      name: /wxz_camera_pointcloud
-      capacity: 64
-      slot_size: 65536
-  vision.pose:
-    transport: shm
-    shm:
-      name: /wxz_vision_pose
-      capacity: 128
-      slot_size: 4096
-  planner.trajectory:
-    transport: shm
-    shm:
-      name: /wxz_planner_trajectory
-      capacity: 64
-      slot_size: 16384
-  arm.status:
-    transport: shm
-    shm:
-      name: /wxz_arm_status
-      capacity: 64
-      slot_size: 4096
+  ws_capability_status:
+    transport: fastdds
+    domain: 0
+    topic: capability/status
+    max_payload: 2048
+    qos:
+      reliability: best_effort
+      history: keep_last
+      depth: 8

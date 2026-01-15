@@ -34,4 +34,18 @@ bool decode_event_dto_cdr(const std::vector<std::uint8_t>& buf, ::EventDTO& out)
     return true;
 }
 
+bool decode_event_dto_cdr(const std::uint8_t* data, std::size_t size, ::EventDTO& out) {
+    CdrDeserializer de(data, size);
+
+    // Field order MUST match dto/EventDTO.idl.
+    if (!de.read_uint32(out.version)) return false;
+    if (!de.read_string(out.schema_id)) return false;
+    if (!de.read_string(out.topic)) return false;
+    if (!de.read_string(out.payload)) return false;
+    if (!de.read_uint64(out.timestamp)) return false;
+    if (!de.read_string(out.event_id)) return false;
+    if (!de.read_string(out.source)) return false;
+    return true;
+}
+
 } // namespace wxz::dto

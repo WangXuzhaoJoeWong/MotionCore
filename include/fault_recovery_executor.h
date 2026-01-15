@@ -11,6 +11,8 @@
 
 namespace wxz::core {
 
+class Executor;
+
 struct FaultRecoveryRule {
     std::string fault;
     std::string service;
@@ -41,6 +43,7 @@ public:
     FaultRecoveryExecutor& operator=(const FaultRecoveryExecutor&) = delete;
 
     void start();
+    void start_on(Executor& ex);
     void stop();
 
 private:

@@ -2,14 +2,14 @@
 set -euo pipefail
 
 BUILD_DIR="@CMAKE_BINARY_DIR@"
-DEFAULT_PREFIX="/opt/MotionCore"
+DEFAULT_PREFIX="$BUILD_DIR"
 
 usage() {
   cat <<'EOF'
 Usage: ./install.sh [--prefix <dir>] [--no-sudo] [--with-docs]
 
 Installs MotionCore into the given prefix.
-Default prefix: /opt/MotionCore
+Default prefix: <build directory>
 
 Examples:
   ./install.sh

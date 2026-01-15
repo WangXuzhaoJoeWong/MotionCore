@@ -16,6 +16,8 @@
 #include "fault_status.h"
 #include "fastdds_channel.h"
 #include "service_common.h"
+#include "clock.h"
+#include "time_sync.h"
 
 namespace wxz::core {
 
@@ -39,6 +41,12 @@ struct NodeBaseConfig {
     int capability_period_ms{1000};
     int heartbeat_period_ms{1000};
 
+    // 可选：时间同步健康探测（NTP/PTP）。
+    // - 0 => 禁用
+    // - >0 => 按周期调用 timesync probe，并输出 metrics；不同实例可用 scope 区分。
+    int timesync_period_ms{0};
+    std::string timesync_scope; // 为空 => 默认用 service
+
     // capability/status payload 字段
     std::vector<std::string> topics_pub;
     std::vector<std::string> topics_sub;
@@ -56,9 +64,10 @@ public:
 
     explicit NodeBase(NodeBaseConfig cfg)
         : cfg_(std::move(cfg)),
-          last_health_(Clock::now() - std::chrono::seconds(10)),
-          last_capability_(Clock::now() - std::chrono::seconds(10)),
-          last_heartbeat_(Clock::now() - std::chrono::seconds(10)) {
+                    last_health_(clock_steady_now() - std::chrono::seconds(10)),
+                    last_capability_(clock_steady_now() - std::chrono::seconds(10)),
+                    last_heartbeat_(clock_steady_now() - std::chrono::seconds(10)),
+                    last_timesync_(clock_steady_now() - std::chrono::seconds(10)) {
         if (!cfg_.capability_topic.empty()) {
             capability_pub_.emplace(cfg_.domain, cfg_.capability_topic, default_reliable_qos(), 2048);
         }
@@ -98,7 +107,20 @@ public:
     }
 
     void tick() {
-        const auto now = Clock::now();
+        const auto now = clock_steady_now();
+
+        if (cfg_.timesync_period_ms > 0) {
+            if (elapsed_ms(now, last_timesync_) >= cfg_.timesync_period_ms) {
+                const TimeSyncStatus st = probe_timesync();
+                const std::string_view scope = cfg_.timesync_scope.empty() ? std::string_view(cfg_.service)
+                                                                          : std::string_view(cfg_.timesync_scope);
+                publish_timesync_metrics(st, scope);
+                if (!st.synced) {
+                    warn("timesync not synced (source=" + st.source + ")");
+                }
+                last_timesync_ = now;
+            }
+        }
 
         if (!cfg_.health_file.empty()) {
             if (elapsed_ms(now, last_health_) >= cfg_.health_period_ms) {
@@ -179,6 +201,7 @@ private:
     Clock::time_point last_health_;
     Clock::time_point last_capability_;
     Clock::time_point last_heartbeat_;
+    Clock::time_point last_timesync_;
 
     std::optional<FastddsChannel> capability_pub_;
     std::optional<FastddsChannel> fault_pub_;

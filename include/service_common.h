@@ -6,6 +6,7 @@
 #include <fstream>
 #include <string>
 
+#include "clock.h"
 #include "inproc_channel.h" // ChannelQoS（通道 QoS 配置）
 
 namespace wxz::core {
@@ -27,9 +28,7 @@ inline int getenv_int(const char* key, int def) {
 }
 
 inline std::uint64_t now_epoch_ms() {
-    using namespace std::chrono;
-    return static_cast<std::uint64_t>(
-        duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count());
+    return clock_now_epoch_ms();
 }
 
 inline bool write_health_file(const std::string& path, const std::string& service, bool ok) {

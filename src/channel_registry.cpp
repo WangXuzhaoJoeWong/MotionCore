@@ -75,6 +75,8 @@ void ChannelRegistry::log_metrics() const {
             const auto& ch = kv.second;
             oss << "{\"channel\":\"" << name << "\","
                 "\"messages_received\":" << ch->messages_received() << ","
+                "\"recv_drop_pool_exhausted\":" << ch->recv_drop_pool_exhausted() << "," 
+                "\"recv_drop_dispatch_rejected\":" << ch->recv_drop_dispatch_rejected() << "," 
                 "\"last_publish_duration_ns\":" << ch->last_publish_duration_ns() << "}";
         }
         oss << "],";

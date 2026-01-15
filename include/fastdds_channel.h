@@ -14,6 +14,8 @@
 
 #include "inproc_channel.h" // for ChannelQoS
 
+#include "byte_buffer_pool.h"
+
 // FastDDS 的 TypeSupport 持有 TopicDataType 实例。
 #include <fastdds/dds/topic/TypeSupport.hpp>
 
@@ -36,13 +38,19 @@ struct DataReaderQos;
 
 namespace wxz::core {
 
+class Executor;
+class Strand;
+
 class FastddsChannel {
 public:
     using Handler = std::function<void(const std::uint8_t* data, std::size_t size)>;
+    using LeasedHandler = std::function<void(ByteBufferLease&& msg)>;
 
     struct HandlerEntry {
         std::uint64_t id{0};
         void* owner{nullptr};
+        Executor* executor{nullptr};
+        Strand* strand{nullptr};
         Handler handler;
     };
 
@@ -63,9 +71,34 @@ public:
     bool publish(const std::uint8_t* data, std::size_t size);
     void subscribe(Handler handler);
 
+    // ROS2-like: do not invoke user handler on the FastDDS callback thread.
+    // Instead, copy the message bytes and dispatch the callback onto the given scheduler.
+    // Note: For allocation-free ingress, prefer subscribe_leased_on().
+    void subscribe_on(Executor& ex, Handler handler);
+    void subscribe_on(Strand& strand, Handler handler);
+
+    // Subscribe with a reusable buffer pool.
+    // Semantics:
+    // - FastDDS callback thread copies bytes into a pooled buffer (no per-message allocation).
+    // - Handler is invoked with a move-only lease; destroying the lease returns buffer to the pool.
+    // - If the pool is exhausted, the leased handler is not invoked.
+    // Note: only a single leased handler is supported per channel.
+    void subscribe_leased(ByteBufferPool& pool, LeasedHandler handler);
+
+    // ROS2-like leased subscribe:
+    // - FastDDS callback thread copies into pooled buffer.
+    // - The lease is then dispatched onto the given scheduler.
+    // - If the pool is exhausted, the callback is dropped (and counted).
+    void subscribe_leased_on(ByteBufferPool& pool, Executor& ex, LeasedHandler handler);
+    void subscribe_leased_on(ByteBufferPool& pool, Strand& strand, LeasedHandler handler);
+
     // 带作用域的订阅（可显式取消）。
     // owner 为可选 tag（例如插件实例指针），用于批量清理。
     Subscription subscribe_scoped(Handler handler, void* owner = nullptr);
+
+    // ROS2-like scoped subscribe with dispatch.
+    Subscription subscribe_scoped_on(Executor& ex, Handler handler, void* owner = nullptr);
+    Subscription subscribe_scoped_on(Strand& strand, Handler handler, void* owner = nullptr);
 
     // 批量取消：移除所有带指定 owner tag 的 handler。
     void unsubscribe_owner(void* owner);
@@ -78,8 +111,14 @@ public:
     std::uint64_t last_publish_duration_ns() const { return last_publish_duration_ns_.load(); }
     std::uint64_t messages_received() const { return messages_received_.load(); }
 
+    // Drops
+    // - drop_pool_exhausted: leased subscribe requested but no buffer available.
+    // - drop_dispatch_rejected: dispatch target rejected (executor/strand stopped or queue full).
+    std::uint64_t recv_drop_pool_exhausted() const { return recv_drop_pool_exhausted_.load(); }
+    std::uint64_t recv_drop_dispatch_rejected() const { return recv_drop_dispatch_rejected_.load(); }
+
     // 暴露 writer 以便诊断（matched count 等）。调用方不可在 channel 生命周期之外持有该指针。
-    eprosima::fastdds::dds::DataWriter* data_writer() const { return writer_; }
+    eprosima::fastdds::dds::DataWriter* data_writer() const;
 
 private:
     void apply_qos(const ChannelQoS& qos,
@@ -93,6 +132,13 @@ private:
     std::string topic_name_;
     std::size_t max_payload_{0};
 
+    // Protect DDS entity pointers during publish/teardown.
+    // Without this, a timer thread may call publish() while cleanup() deletes the writer/participant.
+    mutable std::mutex entity_mutex_;
+
+    // Whether construction completed successfully (used to decide teardown strategy).
+    bool constructed_ok_{false};
+
     eprosima::fastdds::dds::DomainParticipant* participant_{nullptr};
     eprosima::fastdds::dds::Publisher* publisher_{nullptr};
     eprosima::fastdds::dds::Subscriber* subscriber_{nullptr};
@@ -102,6 +148,10 @@ private:
     eprosima::fastdds::dds::TypeSupport type_;
 
     std::vector<HandlerEntry> handlers_;
+    ByteBufferPool* leased_pool_{nullptr};
+    LeasedHandler leased_handler_;
+    Executor* leased_executor_{nullptr};
+    Strand* leased_strand_{nullptr};
     std::uint64_t next_handler_id_{1};
     std::mutex handler_mutex_;
     std::unique_ptr<eprosima::fastdds::dds::DataReaderListener> listener_;
@@ -110,6 +160,9 @@ private:
     std::atomic<std::uint64_t> publish_fail_{0};
     std::atomic<std::uint64_t> last_publish_duration_ns_{0};
     std::atomic<std::uint64_t> messages_received_{0};
+
+    std::atomic<std::uint64_t> recv_drop_pool_exhausted_{0};
+    std::atomic<std::uint64_t> recv_drop_dispatch_rejected_{0};
 
     // 析构安全：避免在 listener 回调执行期间删除 FastDDS 实体。
     std::atomic<bool> stopping_{false};
