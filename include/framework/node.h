@@ -1588,7 +1588,7 @@ public:
         return TextSubscriptionPtr(up.release());
     }
 
-    // CallbackGroup overloads for TextSubscription
+    // TextSubscription 的 CallbackGroup 重载版本
     std::unique_ptr<TextSubscription> create_subscription_text_on(CallbackGroup& group,
                                                                   std::string topic,
                                                                   TextSubscription::Callback cb,

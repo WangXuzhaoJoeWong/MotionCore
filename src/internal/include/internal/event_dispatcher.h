@@ -13,9 +13,9 @@ namespace wxz {
 struct DispatchOptions {
     size_t max_retries{2};
     int pop_timeout_ms{100};
-    // Decide which lane to use: "io" or "cpu". Default: type prefixed with "io." goes to IO, else CPU.
+    // 决定使用哪个 lane："io" 或 "cpu"。默认：type 以 "io." 为前缀走 IO，否则走 CPU。
     std::function<std::string(const Event &)> router;
-    // Handler returns true on success; false triggers retry/dead-letter.
+    // Handler 成功返回 true；返回 false 会触发 retry/dead-letter。
     std::function<bool(const Event &)> handler;
     std::function<void(const Event &, const std::string &)> dead_letter_hook;
     std::function<void(const Event &, const std::string &)> error_hook;

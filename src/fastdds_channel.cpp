@@ -83,7 +83,7 @@ struct RawMsg {
             }
         }
 
-        // Fallback to internal vector.
+        // 回退到内部 vector。
         lease = wxz::core::ByteBufferLease();
         data.resize(len);
         return data.data();
@@ -97,8 +97,8 @@ class RawMsgType : public eprosima::fastdds::dds::TopicDataType {
 public:
     explicit RawMsgType(std::size_t max_payload) : max_payload_(max_payload) {
         setName("WxzRawBytes");
-        // Allow extra headroom for possible CDR alignment/padding.
-        // Encapsulation(4) + len(uint32=4) + bytes + alignment headroom.
+        // 预留额外空间，用于可能的 CDR 对齐/填充。
+        // Encapsulation(4) + len(uint32=4) + bytes + alignment 余量。
         m_typeSize = static_cast<uint32_t>(max_payload_ + 24);
         m_isGetKeyDefined = false;
     }
@@ -109,7 +109,7 @@ public:
         eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char*>(payload->data), payload->max_size);
         eprosima::fastcdr::Cdr ser(fastbuffer);
 
-        // FastDDS expects the CDR encapsulation to be present.
+        // FastDDS 要求 payload 中包含 CDR encapsulation。
         payload->encapsulation = wxz::internal::fastcdr_compat::is_big_endian(ser) ? CDR_BE : CDR_LE;
         wxz::internal::fastcdr_compat::serialize_encapsulation(ser);
 
@@ -226,7 +226,7 @@ public:
                 }
             }
 
-            // Regular handlers: optionally dispatch onto executor/strand.
+            // 普通 handler：可选投递到 executor/strand 上执行。
             for (auto& e : copy) {
                 if (!e.handler) continue;
                 if (!e.executor && !e.strand) {
@@ -255,7 +255,7 @@ public:
                     if (wxz::core::has_metrics_sink()) {
                         wxz::core::metrics().counter_add("wxz.fastdds.recv.drop_dispatch_rejected", 1, {{"topic", topic_name_}});
                     }
-                    // Sampled log to avoid spamming.
+                    // 抽样日志，避免刷屏。
                     if (n == 1 || (n % 1024) == 0) {
                         wxz::core::Logger::getInstance().log(wxz::core::LogLevel::Warn,
                                                              "fastdds recv drop: dispatch rejected",
@@ -264,7 +264,7 @@ public:
                 }
             }
 
-            // Leased handler: pool-backed bytes with optional dispatch.
+            // Leased handler：基于 pool 的字节缓冲，且可选投递到调度器。
             if (want_lease && leased) {
                 if (msg_.lease) {
                     auto lease = std::move(msg_.lease);
@@ -302,7 +302,7 @@ public:
                         leased(std::move(lease));
                     }
                 } else {
-                    // Pool exhausted: leased handler is dropped by design.
+                    // 缓冲池耗尽：按设计直接丢弃 leased handler。
                     const auto n = drop_pool_exhausted_.fetch_add(1, std::memory_order_relaxed) + 1;
                     if (wxz::core::has_metrics_sink()) {
                         wxz::core::metrics().counter_add("wxz.fastdds.recv.drop_pool_exhausted", 1, {{"topic", topic_name_}});
@@ -345,7 +345,7 @@ private:
     RawMsg msg_;
 };
 
-} // namespace
+} // 匿名命名空间
 
 FastddsChannel::FastddsChannel(int domain_id, std::string topic, const ChannelQoS& qos, std::size_t max_payload)
     : FastddsChannel(domain_id, std::move(topic), qos, max_payload, /*enable_pub=*/true, /*enable_sub=*/true) {}
@@ -359,28 +359,26 @@ FastddsChannel::FastddsChannel(int domain_id,
     : domain_id_(domain_id), topic_name_(std::move(topic)), max_payload_(max_payload) {
     using namespace eprosima::fastdds::dds;
 
-    // If DDS-Security is enabled via FASTDDS_ENVIRONMENT_FILE, fail-fast when critical
-    // security artifacts are missing. This avoids "process lives but cannot communicate"
-    // and makes misconfiguration diagnosable in CI and production.
+    // 如果通过 FASTDDS_ENVIRONMENT_FILE 启用了 DDS-Security，那么当关键安全文件缺失时直接 fail-fast。
+    // 这样可以避免“进程还活着但无法通信”，并让 CI/生产环境中的配置错误更容易被诊断。
     wxz::core::internal::precheck_dds_security_from_fastdds_env_file(std::getenv("FASTDDS_ENVIRONMENT_FILE"));
 
-    // Optional: allow users to control FastDDS behavior via XML profiles.
-    // - If WXZ_FASTDDS_PROFILES_FILE is set, it must be readable and loadable.
-    // - If WXZ_FASTDDS_PARTICIPANT_PROFILE is set, it must exist.
-    // See internal factory for details.
+    // 可选：允许用户通过 XML profiles 控制 FastDDS 行为。
+    // - 若设置 WXZ_FASTDDS_PROFILES_FILE，则该文件必须可读且可加载。
+    // - 若设置 WXZ_FASTDDS_PARTICIPANT_PROFILE，则该 profile 必须存在。
+    // 细节见内部 factory。
     participant_ = wxz::core::internal::create_fastdds_participant_from_env(domain_id_);
     if (!participant_) {
         throw std::runtime_error("FastDDS participant create failed");
     }
 
-    // TypeSupport owns the TopicDataType pointer.
+    // TypeSupport 持有 TopicDataType 指针的所有权。
     type_ = TypeSupport(new RawMsgType(max_payload_));
     type_.register_type(participant_);
 
-    // IMPORTANT: Always create both Publisher and Subscriber entities.
-    // Empirically, some FastDDS configurations will not match endpoints correctly
-    // across processes if a participant only creates one side.
-    // We still avoid self-subscription by conditionally creating only the writer/reader.
+    // 重要：始终同时创建 Publisher 与 Subscriber 实体。
+    // 经验上，如果 participant 只创建单边实体，在某些 FastDDS 配置下跨进程端点匹配会不稳定。
+    // 同时我们仍通过“按需只创建 writer/reader”来避免自订阅。
     publisher_ = participant_->create_publisher(PublisherQos(), nullptr);
     if (!publisher_) {
         cleanup();
@@ -402,7 +400,7 @@ FastddsChannel::FastddsChannel(int domain_id,
 
     DataWriterQos wqos;
     DataReaderQos rqos;
-    apply_qos(qos, wqos, rqos, qos.history == 0 ? 32 : qos.history); // default depth 32 when keep_all
+    apply_qos(qos, wqos, rqos, qos.history == 0 ? 32 : qos.history); // keep_all 时默认 depth=32
         if (qos.realtime_hint) {
             wqos.publish_mode().kind = SYNCHRONOUS_PUBLISH_MODE;
         }
@@ -455,8 +453,8 @@ void FastddsChannel::cleanup() {
 
     stopping_.store(true, std::memory_order_release);
 
-    // IMPORTANT: drop all user handlers early to avoid executing callbacks during teardown.
-    // This is especially important when channels are stack-allocated inside services.
+    // 重要：尽早清空所有用户 handler，避免 teardown 期间仍执行回调。
+    // 当 channel 作为 service 内的栈对象时，这一点尤其关键。
     {
         std::lock_guard<std::mutex> lock(handler_mutex_);
         handlers_.clear();
@@ -467,36 +465,35 @@ void FastddsChannel::cleanup() {
     }
 
     {
-        // Best-effort safety: prevent callbacks into user handlers while tearing down.
+        // 尽力做安全防护：在 teardown 过程中阻止回调进入用户 handler。
         std::lock_guard<std::mutex> lock(entity_mutex_);
         if (reader_) {
             try {
                 reader_->set_listener(nullptr);
             } catch (...) {
-                // ignore
+                // 忽略
             }
         }
     }
 
-    // Wait briefly for any in-flight listener callbacks to finish before deleting DDS entities.
-    // This mitigates shutdown-time races observed as intermittent SIGSEGV in short-lived processes.
+    // 在删除 DDS 实体前，短暂等待正在执行中的 listener 回调结束。
+    // 这用于缓解短生命周期进程里观察到的“退出时偶发 SIGSEGV”的竞态。
     auto deadline = std::chrono::steady_clock::now() + std::chrono::milliseconds(200);
     while (callbacks_inflight_.load(std::memory_order_relaxed) != 0 && std::chrono::steady_clock::now() < deadline) {
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
     {
-        // Serialize teardown vs publish().
+        // 序列化 teardown 与 publish()。
         std::lock_guard<std::mutex> lock(entity_mutex_);
 
-        // Prefer explicit teardown order over delete_contained_entities().
-        // In practice, some FastDDS versions/configs can be sensitive to implicit teardown
-        // when DataReader callbacks are in-flight.
+        // 优先采用显式 teardown 顺序，而不是 delete_contained_entities()。
+        // 实际上，当 DataReader 回调仍在执行时，某些 FastDDS 版本/配置对隐式 teardown 更敏感。
         if (subscriber_ && reader_) {
             try {
                 (void)subscriber_->delete_datareader(reader_);
             } catch (...) {
-                // ignore
+                // 忽略
             }
             reader_ = nullptr;
         }
@@ -506,17 +503,17 @@ void FastddsChannel::cleanup() {
             try {
                 (void)publisher_->delete_datawriter(writer_);
             } catch (...) {
-                // ignore
+                // 忽略
             }
             writer_ = nullptr;
         }
 
-        // Delete publishers/subscribers before topics as an extra safety measure.
+        // 额外安全措施：先删 publisher/subscriber，再删 topic。
         if (participant_ && subscriber_) {
             try {
                 (void)participant_->delete_subscriber(subscriber_);
             } catch (...) {
-                // ignore
+                // 忽略
             }
             subscriber_ = nullptr;
         }
@@ -525,7 +522,7 @@ void FastddsChannel::cleanup() {
             try {
                 (void)participant_->delete_publisher(publisher_);
             } catch (...) {
-                // ignore
+                // 忽略
             }
             publisher_ = nullptr;
         }
@@ -534,21 +531,21 @@ void FastddsChannel::cleanup() {
             try {
                 (void)participant_->delete_topic(topic_);
             } catch (...) {
-                // ignore
+                // 忽略
             }
             topic_ = nullptr;
         }
 
-        // NOTE: In some environments we observed intermittent shutdown-time crashes inside
-        // libfastrtps when deleting a DomainParticipant (PDP/TopicPayloadPool teardown).
-        // For stress tools and short-lived processes, allow opting into a crash-avoidant
-        // teardown mode that skips participant deletion and relies on process exit to reclaim.
+        // 注意：在部分环境中，我们观察到删除 DomainParticipant 时（PDP/TopicPayloadPool teardown）
+        // libfastrtps 内部会出现退出时偶发崩溃。
+        // 对于压测工具/短生命周期进程，允许选择一种“规避崩溃”的 teardown：跳过 participant 删除，
+        // 依赖进程退出时由 OS 回收资源。
         const bool safe_teardown = env_truthy("WXZ_FASTDDS_SAFE_TEARDOWN");
         if (!safe_teardown || !constructed_ok_) {
             try {
                 (void)DomainParticipantFactory::get_instance()->delete_participant(participant_);
             } catch (...) {
-                // ignore
+                // 忽略
             }
         }
 
@@ -572,16 +569,15 @@ bool FastddsChannel::publish(const std::uint8_t* data, std::size_t size) {
     }
     auto rc = writer_->write(&msg);
 
-    // FastDDS API differences: depending on the installed version/headers,
-    // DataWriter::write may return bool or a ReturnCode-like enum.
+    // FastDDS API 差异：取决于安装的版本/头文件，DataWriter::write 可能返回 bool 或类似 ReturnCode 的枚举。
     bool ok = false;
     if constexpr (std::is_same_v<decltype(rc), bool>) {
         ok = rc;
     } else {
         ok = (static_cast<int>(rc) == 0);
     }
-    // Optional tolerance: allow demos to proceed even if writer reports error.
-    // Set WXZ_DDS_IGNORE_WRITE_ERRORS=1 to treat RETCODE_ERROR as success.
+    // 可选容错：即使 writer 报错，也允许 demo 继续执行。
+    // 设置 WXZ_DDS_IGNORE_WRITE_ERRORS=1 时，将 RETCODE_ERROR 视为成功。
     const char* ignore_err = std::getenv("WXZ_DDS_IGNORE_WRITE_ERRORS");
     const bool tolerate = (ignore_err && (*ignore_err == '1' || std::strcmp(ignore_err, "true") == 0));
     auto dt = std::chrono::steady_clock::now() - t0;
@@ -745,7 +741,7 @@ void FastddsChannel::apply_qos(const ChannelQoS& qos,
     if (qos.history == 0) {
         wqos.history().kind = KEEP_ALL_HISTORY_QOS;
         rqos.history().kind = KEEP_ALL_HISTORY_QOS;
-        // keep_all implies resource limits must be large; use depth hint
+        // keep_all 通常意味着需要更大的资源上限；这里用 depth 作为提示。
         wqos.resource_limits().max_samples = static_cast<int32_t>(history_depth);
         rqos.resource_limits().max_samples = static_cast<int32_t>(history_depth);
     } else {
@@ -799,7 +795,7 @@ void FastddsChannel::apply_qos(const ChannelQoS& qos,
 
     wqos.publish_mode().kind = qos.async_publish ? ASYNCHRONOUS_PUBLISH_MODE : SYNCHRONOUS_PUBLISH_MODE;
     if (qos.realtime_hint) {
-        // Force sync publish in realtime mode to avoid background thread scheduling jitter.
+        // realtime 模式下强制同步发布，避免后台线程调度抖动。
         wqos.publish_mode().kind = SYNCHRONOUS_PUBLISH_MODE;
     }
 }

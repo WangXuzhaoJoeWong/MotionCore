@@ -23,7 +23,7 @@ Config::Config() {
         namespace fs = std::filesystem;
         std::error_code ec;
         fs::path cfg_p(cfg_path);
-        // Normalize to absolute path for consistent relative-path resolution.
+        // 归一化为绝对路径，保证相对路径解析的一致性。
         const fs::path abs_cfg_p = fs::absolute(cfg_p, ec);
         if (!ec) cfg_p = abs_cfg_p;
         config_path_ = cfg_p.string();
@@ -55,8 +55,8 @@ Config::Config() {
             }
         }
 
-        // fastdds (optional, ops-managed)
-        // Example:
+        // fastdds（可选，通常由运维侧管理）
+        // 示例：
         // fastdds:
         //   environment_file: resources/fastdds_peers_example.xml
         //   log_filename: /tmp/fastdds.log
@@ -96,7 +96,7 @@ Config::Config() {
                 }
             };
 
-            // Must be set before creating any participants.
+            // 必须在创建任何 participant 之前设置。
             set_if_unset("FASTDDS_ENVIRONMENT_FILE", fastdds_environment_file_);
             set_if_unset("FASTDDS_LOG_FILENAME", fastdds_log_filename_);
             set_if_unset("FASTDDS_VERBOSITY", fastdds_verbosity_);
@@ -113,7 +113,7 @@ Config::Config() {
             }
         }
 
-        // discovery / heartbeat
+        // discovery / heartbeat（发现 / 心跳）
         if (doc && doc["discovery"]) {
             if (doc["discovery"]["endpoint"]) {
                 discovery_endpoint_ = doc["discovery"]["endpoint"].as<std::string>("");
@@ -121,9 +121,9 @@ Config::Config() {
             if (doc["discovery"]["heartbeat_period_ms"]) {
                 heartbeat_period_ms_ = doc["discovery"]["heartbeat_period_ms"].as<int>(0);
             }
-            // Backward/forward compatible naming:
-            // - canonical: ttl_ms
-            // - alias (legacy docs): heartbeat_ttl_ms
+            // 前/后向兼容的字段命名：
+            // - 标准字段：ttl_ms
+            // - 别名（历史文档）：heartbeat_ttl_ms
             if (doc["discovery"]["ttl_ms"]) {
                 heartbeat_ttl_ms_ = doc["discovery"]["ttl_ms"].as<int>(0);
             } else if (doc["discovery"]["heartbeat_ttl_ms"]) {
@@ -142,7 +142,7 @@ Config::Config() {
             }
         }
 
-        // event queue / dispatcher
+        // event queue / dispatcher（事件队列 / 分发器）
         if (doc && doc["queue"]) {
             if (doc["queue"]["max_size"]) {
                 event_queue_max_size_ = doc["queue"]["max_size"].as<int>(event_queue_max_size_);
@@ -167,8 +167,8 @@ Config::Config() {
             realtime_mode_ = doc["realtime_mode"].as<bool>(realtime_mode_);
         }
 
-        // observability (optional)
-        // Example:
+        // observability（可观测性，可选）
+        // 示例：
         // metrics:
         //   period_ms: 5000
         if (doc && doc["metrics"]) {
@@ -178,8 +178,8 @@ Config::Config() {
             }
         }
 
-        // fault recovery executor (optional)
-        // Example:
+        // fault recovery executor（故障恢复执行器，可选）
+        // 示例：
         // fault_recovery:
         //   enable: true
         //   topic: fault/status
@@ -214,7 +214,7 @@ Config::Config() {
                         if (m["severity"]) rc.severity = m["severity"].as<std::string>(rc.severity);
                     }
 
-                    // accept only known actions
+                    // 只接受已知 action
                     if (rc.action == "restart" || rc.action == "degrade") {
                         fault_recovery_rules_.push_back(std::move(rc));
                     }
@@ -222,7 +222,7 @@ Config::Config() {
             }
         }
 
-        // channels (FastDDS / others)
+        // channels（FastDDS / 其它传输）
         if (doc && doc["channels"]) {
             for (auto it = doc["channels"].begin(); it != doc["channels"].end(); ++it) {
                 ChannelConfig cfg;
@@ -238,8 +238,8 @@ Config::Config() {
                     }
                 }
 
-                // shm transport parameters
-                // Example:
+                // shm 传输参数
+                // 示例：
                 // channels:
                 //   cam_req:
                 //     transport: shm
@@ -266,7 +266,7 @@ Config::Config() {
                     }
                     if (q["history"]) {
                         auto v = to_upper(q["history"].as<std::string>("KEEP_LAST"));
-                        if (v == "KEEP_ALL") cfg.qos.history = 0; // keep_all
+                        if (v == "KEEP_ALL") cfg.qos.history = 0; // keep_all（保留全部历史）
                         else if (q["depth"]) cfg.qos.history = q["depth"].as<std::size_t>(cfg.qos.history);
                     }
                     if (q["depth"]) cfg.qos.history = q["depth"].as<std::size_t>(cfg.qos.history);
@@ -296,7 +296,7 @@ Config::Config() {
             }
         }
 
-        // channel governance: allowlist / denylist by name
+        // channel 治理：按名称 allowlist / denylist
         if (doc && doc["channel_filters"]) {
             auto filters = doc["channel_filters"];
             if (filters["allow"]) {
@@ -340,7 +340,7 @@ Config::Config() {
 
     if (metrics_period_ms_ <= 0) metrics_period_ms_ = 5000;
 
-    // env overrides for queue / dispatcher
+    // 通过环境变量覆盖 queue / dispatcher 参数
     if (const char* v = std::getenv("WXZ_QUEUE_MAX")) {
         try { event_queue_max_size_ = std::stoi(v); } catch (...) {}
     }

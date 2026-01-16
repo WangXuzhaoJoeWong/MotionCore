@@ -7,12 +7,12 @@
 
 namespace wxz::core {
 
-// A minimal move-only function wrapper with small-buffer optimization.
+// 一个最小的 move-only 函数包装器，带小对象缓冲区优化（SBO）。
 //
-// Design goals:
-// - Accept move-only callables (e.g., lambdas capturing move-only leases).
-// - Avoid heap allocation for typical small callables.
-// - C++17 compatible.
+// 设计目标：
+// - 支持 move-only 可调用对象（例如捕获了 move-only lease 的 lambda）。
+// - 对于常见的小对象可调用体，尽量避免堆分配。
+// - 兼容 C++17。
 class MoveOnlyFunction {
 public:
     MoveOnlyFunction() = default;

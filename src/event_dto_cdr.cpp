@@ -9,7 +9,7 @@ bool encode_event_dto_cdr(const ::EventDTO& dto,
                           std::size_t initial_reserve) {
     CdrSerializer ser(out, initial_reserve);
 
-    // Field order MUST match dto/EventDTO.idl.
+    // 字段顺序必须与 dto/EventDTO.idl 一致。
     if (!ser.write_uint32(dto.version)) return false;
     if (!ser.write_string(dto.schema_id)) return false;
     if (!ser.write_string(dto.topic)) return false;
@@ -23,7 +23,7 @@ bool encode_event_dto_cdr(const ::EventDTO& dto,
 bool decode_event_dto_cdr(const std::vector<std::uint8_t>& buf, ::EventDTO& out) {
     CdrDeserializer de(buf);
 
-    // Field order MUST match dto/EventDTO.idl.
+    // 字段顺序必须与 dto/EventDTO.idl 一致。
     if (!de.read_uint32(out.version)) return false;
     if (!de.read_string(out.schema_id)) return false;
     if (!de.read_string(out.topic)) return false;
@@ -37,7 +37,7 @@ bool decode_event_dto_cdr(const std::vector<std::uint8_t>& buf, ::EventDTO& out)
 bool decode_event_dto_cdr(const std::uint8_t* data, std::size_t size, ::EventDTO& out) {
     CdrDeserializer de(data, size);
 
-    // Field order MUST match dto/EventDTO.idl.
+    // 字段顺序必须与 dto/EventDTO.idl 一致。
     if (!de.read_uint32(out.version)) return false;
     if (!de.read_string(out.schema_id)) return false;
     if (!de.read_string(out.topic)) return false;

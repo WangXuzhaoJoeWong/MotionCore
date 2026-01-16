@@ -74,7 +74,7 @@ std::optional<ParamValue> parseFromString(const std::string& s, const std::strin
             }
             return std::nullopt;
         }
-        // string or unknown
+        // string 或未知类型
         return ParamValue{s};
     } catch (...) {
         return std::nullopt;
@@ -119,13 +119,13 @@ public:
             types_[key] = type;
         }
 
-        // Keep internal schemas in sync (wire-level validation).
+        // 保持内部 schema 同步（wire-level 校验）。
         wxz::core::internal::ParamServer::ParamSpec spec;
         spec.type = type;
         spec.read_only = read_only;
         internal_->setSchema(key, spec);
 
-        // Declare with callback so remote updates are observable.
+        // 用回调声明，确保远端更新可被观察到。
         internal_->declare(
             key,
             default_str,
@@ -144,7 +144,7 @@ public:
     }
 
     std::optional<ParamValue> getValue(const std::string& key) const {
-        // Prefer cached typed values.
+        // 优先使用缓存的强类型值。
         {
             std::lock_guard<std::mutex> lock(mu_);
             auto it = values_.find(key);
@@ -153,7 +153,7 @@ public:
             }
         }
 
-        // Fallback: read from ParamStore (string snapshot), then parse if we know the type.
+        // 回退：从 ParamStore 读取（字符串快照），若已知类型则进行解析。
         auto raw = ParamStore::instance().get(key);
         if (!raw.has_value()) {
             return std::nullopt;
@@ -176,8 +176,8 @@ public:
     }
 
     bool setValue(const std::string& key, const ParamValue& value) {
-        // Local apply (non-wire) for callers that want in-process API.
-        // Remote changes are expected to come via param.set topic.
+        // 本地应用（非 wire），供需要进程内 API 的调用方使用。
+        // 远端变更预期通过 param.set topic 进入。
         std::string type = "";
         {
             std::lock_guard<std::mutex> lock(mu_);

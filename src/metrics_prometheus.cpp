@@ -44,7 +44,7 @@ std::string labels_to_string(std::initializer_list<LabelView> labels) {
     }
     out << '}';
     const auto s = out.str();
-    // If all labels were empty keys, produce empty.
+    // 如果所有 label 的 key 都为空，则输出空字符串。
     return (s == "{}") ? std::string{} : s;
 }
 
@@ -61,7 +61,7 @@ std::string PrometheusMetricsSink::sanitize_metric_name_(std::string_view in) {
         }
     }
     if (out.empty()) out = "wxz_metric";
-    // Prometheus names should not start with digit.
+    // Prometheus 的名称不应以数字开头。
     if (out[0] >= '0' && out[0] <= '9') out.insert(out.begin(), '_');
     return out;
 }
@@ -130,7 +130,7 @@ void PrometheusMetricsSink::histogram_observe(std::string_view name, double valu
 std::string PrometheusMetricsSink::render() const {
     std::lock_guard<std::mutex> lock(mutex_);
 
-    // Stable-ish output: sort keys by name then labels.
+    // 输出尽量稳定：按 name 再按 labels 排序。
     std::vector<std::string> family_names;
     family_names.reserve(types_.size());
     for (const auto& kv : types_) family_names.push_back(kv.first);
@@ -172,7 +172,7 @@ std::string PrometheusMetricsSink::render() const {
         } else if (t == Type::Histogram) {
             for (const auto& kv : histograms_) {
                 if (kv.first.name != fam) continue;
-                // Expose minimal Prometheus histogram fields.
+                // 暴露最小的 Prometheus histogram 字段。
                 out << kv.first.name << "_count";
                 if (!kv.first.labels.empty()) out << kv.first.labels;
                 out << ' ' << kv.second.count << "\n";

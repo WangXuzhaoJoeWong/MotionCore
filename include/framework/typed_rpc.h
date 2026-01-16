@@ -33,8 +33,8 @@ inline bool try_from_json(const nlohmann::json& j, T& out) {
 
 } // namespace detail
 
-// Server side: decode params into Req, run typed handler, encode Resp as result.
-// Requires nlohmann::json conversions for Req/Resp (to_json/from_json).
+// 服务端：把 params 解码为 Req，运行强类型 handler，然后把 Resp 编码为 result。
+// 依赖 Req/Resp 的 nlohmann::json 转换（to_json/from_json）。
 template <class Req, class Resp>
 inline void add_handler(RpcService& svc,
                         std::string op,
@@ -66,8 +66,8 @@ inline void add_handler(RpcService& svc,
     });
 }
 
-// Client side: encode Req as params, call, decode result into Resp.
-// Requires nlohmann::json conversions for Req/Resp (to_json/from_json).
+// 客户端：把 Req 编码为 params，发起 call，并把 result 解码为 Resp。
+// 依赖 Req/Resp 的 nlohmann::json 转换（to_json/from_json）。
 template <class Req, class Resp>
 inline Result<Resp> call(RpcServiceClient& cli,
                          const std::string& op,

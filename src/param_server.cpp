@@ -30,7 +30,7 @@ std::string json_escape(std::string_view in) {
         case '\r': out += "\\r"; break;
         case '\t': out += "\\t"; break;
         default:
-            // Keep it simple: only escape common control chars.
+            // 保持简单：只转义常见控制字符。
             if (static_cast<unsigned char>(c) < 0x20) {
                 out += ' ';
             } else {
@@ -42,8 +42,8 @@ std::string json_escape(std::string_view in) {
     return out;
 }
 
-// Parse a very small subset of "k=v;k2=v2" payloads.
-// Returns empty string if missing.
+// 解析 "k=v;k2=v2" 格式 payload 的一个极小子集。
+// 若不存在对应 key，则返回空字符串。
 std::string kv_get(std::string_view msg, std::string_view key) {
     const std::string needle = std::string(key) + "=";
     const auto pos = msg.find(needle);
@@ -62,7 +62,7 @@ bool looks_like_export_request(std::string_view msg) {
     return false;
 }
 
-} // namespace
+} // 匿名命名空间
 
 namespace wxz::core::internal {
 
@@ -217,7 +217,7 @@ void ParamServer::maybeStartFetchThread() {
     }
     bool expected = false;
     if (!fetch_running_.compare_exchange_strong(expected, true)) {
-        return; // already running
+        return; // 已在运行
     }
     if (fetch_thread_.joinable()) {
         fetch_thread_.join();
@@ -248,7 +248,7 @@ void ParamServer::stop() {
     if (worker_.joinable()) worker_.join();
     if (fetch_thread_.joinable()) fetch_thread_.join();
 
-    // Best-effort: stop subscriptions first to avoid callbacks racing teardown.
+    // 尽力而为：优先停止订阅，避免回调与 teardown 竞态。
     {
         std::lock_guard<std::mutex> lock(channel_mu_);
         set_subscription_.reset();
@@ -298,7 +298,7 @@ void ParamServer::ensureExportChannelsStarted() {
         return;
     }
 
-    // Refresh subscription/publish channels if topics changed.
+    // 如果 topic 发生变化，则刷新订阅/发布 channel。
     const auto reply_topic = export_reply_topic_.empty() ? export_request_topic_ : export_reply_topic_;
 
     if (!export_req_sub_ || !export_reply_pub_) {
@@ -348,7 +348,7 @@ void ParamServer::loop() {
     loop_entered_.store(true);
     while (running_) {
         try {
-            // Ensure export channels are started if enableExportService() was called after start().
+            // 若在 start() 之后才调用 enableExportService()，这里确保导出通道也能启动。
             if (!export_request_topic_.empty()) {
                 ensureExportChannelsStarted();
             }
@@ -369,7 +369,7 @@ void ParamServer::loop() {
                 if (!running_.load(std::memory_order_relaxed)) break;
                 if (dump_req.empty()) continue;
                 const auto ts_ms = nowEpochMs();
-                // Prevent self-triggering loops if request/reply share the same topic.
+                // 若 request/reply 复用同一个 topic，则避免自触发循环。
                 if (dump_req.rfind("BULK", 0) == 0) continue;
                 if (dump_req.find("status=") != std::string::npos) continue;
 
@@ -379,8 +379,8 @@ void ParamServer::loop() {
 
                 const std::string id = kv_get(dump_req, "id");
 
-                // Reply in the same lightweight BULK format used by set messages.
-                // NOTE: This is intended for debug tooling; values are not escaped.
+                // 使用与 set 消息相同的轻量 BULK 格式进行回复。
+                // 注意：该功能用于调试工具；value 不做转义。
                 std::string payload;
                 payload.reserve(64 + params_.size() * 16);
                 payload += "BULK ";
@@ -394,7 +394,7 @@ void ParamServer::loop() {
                     if (payload.size() > max_payload_ - 128) break;
                 }
 
-                // Append minimal metadata (best-effort) for correlation.
+                // 附加最小元数据（尽力而为），用于关联/排查。
                 payload += ";op=param.export";
                 if (!id.empty()) {
                     payload += ";id=";
@@ -412,7 +412,7 @@ void ParamServer::loop() {
                 if (!running_.load(std::memory_order_relaxed)) break;
                 if (msg.empty()) continue;
 
-                // Bulk format: BULK key1=val1;key2=val2
+                // 批量格式：BULK key1=val1;key2=val2
                 if (msg.rfind("BULK", 0) == 0) {
                     auto body_pos = msg.find(' ');
                     if (body_pos != std::string::npos && body_pos + 1 < msg.size()) {
@@ -439,7 +439,7 @@ void ParamServer::handleSetMessage(const std::string& msg) {
 }
 
 void ParamServer::handleBulkMessage(const std::string& body) {
-    // Expect semicolon-separated key=val list; blanks ignored.
+    // 期望使用分号分隔的 key=val 列表；空白会被忽略。
     std::unordered_map<std::string, std::string> applied;
     size_t start = 0;
     while (start < body.size()) {
@@ -458,7 +458,7 @@ void ParamServer::handleBulkMessage(const std::string& body) {
         if (sep == std::string::npos) break;
         start = sep + 1;
     }
-    // Ack with simple JSON map
+    // 使用简单 JSON map 进行 Ack
     if (!applied.empty()) {
         std::ostringstream oss;
         oss << "{\"status\":\"ok\",\"applied\":{";

@@ -87,7 +87,7 @@ public:
             std::lock_guard<std::mutex> lk(mu_);
             if (!started_) return;
 
-            // Best-effort: cancel all pending.
+            // 尽力而为：取消所有 pending。
             for (auto& [id, p] : pending_) {
                 to_cancel.emplace(id, p.promise);
             }

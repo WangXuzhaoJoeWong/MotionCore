@@ -39,12 +39,12 @@ void DiscoveryClient::stop() {
     if (worker_.joinable()) worker_.join();
     // 优雅下线：补发一次心跳，再尝试注销。
     (void)sendHeartbeat();
-    // Best-effort deregister once.
+    // 尽力而为：尝试注销一次。
     (void)sendDeregister();
 }
 
 void DiscoveryClient::run() {
-    // Attempt an initial register once.
+    // 尝试进行一次初始注册。
     if (!sendRegister()) {
         std::cerr << "[discovery] initial register failed to " << endpoint_ << "\n";
     }
@@ -53,7 +53,7 @@ void DiscoveryClient::run() {
         if (!ok) {
             std::cerr << "[discovery] heartbeat failed to " << endpoint_ << "\n";
         }
-        // Opportunistically refresh peer list; non-fatal on failure.
+        // 机会性地刷新 peer 列表；失败不致命。
         (void)fetchPeers();
         std::this_thread::sleep_for(std::chrono::milliseconds(period_ms_));
     }
@@ -185,7 +185,7 @@ bool DiscoveryClient::fetchPeers() {
         return false;
     }
 
-    // Expect JSON array of objects: [{"endpoint":"...","role":"...","zone":"...","qos":"reliable"}, ...]
+    // 期望返回 JSON 对象数组：[{"endpoint":"...","role":"...","zone":"...","qos":"reliable"}, ...]
     std::vector<PeerInfo> parsed;
     std::string current_obj;
     bool in_obj = false;

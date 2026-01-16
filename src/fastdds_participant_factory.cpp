@@ -71,7 +71,7 @@ std::string try_infer_install_prefix_from_proc_self_exe() {
 std::string default_profiles_path_from_install_prefix() {
     const std::string prefix = try_infer_install_prefix_from_proc_self_exe();
     if (prefix.empty()) return std::string();
-    // Prefer new layout, but keep old one working.
+    // 优先使用新的目录布局，但仍兼容旧布局。
     const std::string primary = join_path(prefix, kDefaultProfilesRelPath);
     {
         std::ifstream ifs(primary);
@@ -136,8 +136,8 @@ eprosima::fastdds::dds::DomainParticipant* create_participant_with_fallback(
     try {
         return factory->create_participant(domain_id, qos, nullptr, StatusMask::none());
     } catch (const std::bad_alloc&) {
-        // FastDDS SharedMemTransport can throw std::bad_alloc when shared-memory resources
-        // cannot be allocated/opened. Provide a best-effort fallback to UDP-only transports.
+        // FastDDS 的 SharedMemTransport 在共享内存资源无法分配/打开时可能抛出 std::bad_alloc。
+        // 这里提供一个“尽力而为”的回退：改用仅 UDP 的 transports。
         if (force_udp_only) throw;
 
         wxz::core::Logger::getInstance().warn(
@@ -169,7 +169,7 @@ void load_fastdds_profiles_from_env_once() {
             return;
         }
 
-        // No env override: best-effort load release default profiles from install-tree.
+        // 未通过环境变量覆盖时：尽力从 install-tree 加载 release 默认 profiles。
         const std::string default_path = default_profiles_path_from_install_prefix();
         if (default_path.empty()) return;
         std::ifstream ifs(default_path);
@@ -210,15 +210,15 @@ void load_fastdds_profiles_from_env_once() {
     auto* factory = DomainParticipantFactory::get_instance();
 
     if (!participant_profile.empty()) {
-        // Pre-check profile existence to keep failure explicit and reduce noisy logs.
+        // 预先检查 profile 是否存在：让失败更明确，并减少噪声日志。
         DomainParticipantQos qos;
         const auto ret = factory->get_participant_qos_from_profile(participant_profile, qos);
         if (ret != eprosima::fastrtps::types::ReturnCode_t::RETCODE_OK) {
             throw std::runtime_error("FastDDS participant profile not found: " + participant_profile);
         }
 
-        // Strict profile: force Discovery Server client behavior, sourcing the remote server list from
-        // ROS_DISCOVERY_SERVER. This avoids relying on implicit SIMPLE->CLIENT conversion.
+        // 严格 profile：强制 Discovery Server 客户端行为，远端服务器列表来自 ROS_DISCOVERY_SERVER。
+        // 这可以避免依赖隐式的 SIMPLE->CLIENT 转换。
         if (participant_profile == kStrictParticipantProfile) {
             auto& servers = qos.wire_protocol().builtin.discovery_config.m_DiscoveryServers;
             if (servers.empty()) {
@@ -234,17 +234,17 @@ void load_fastdds_profiles_from_env_once() {
         return create_participant_with_fallback(domain_id, factory, qos);
     }
 
-    // No explicit participant profile. If we loaded install-tree release defaults, pick the known default profile.
+    // 未显式指定 participant profile：若已加载 install-tree 的 release 默认 profiles，则选择已知默认 profile。
     if (profiles_state().used_default_file && !profiles_state().used_env_file) {
         DomainParticipantQos qos;
         const auto ret = factory->get_participant_qos_from_profile(kDefaultParticipantProfile, qos);
         if (ret == eprosima::fastrtps::types::ReturnCode_t::RETCODE_OK) {
             return create_participant_with_fallback(domain_id, factory, qos);
         }
-        // Fall through if profile not found for any reason.
+        // 若因任何原因未找到 profile，则继续走默认路径。
     }
 
-    // Let XML default profile (if any) apply.
+    // 让 XML 默认 profile（若存在）生效。
     DomainParticipantQos qos = PARTICIPANT_QOS_DEFAULT;
     return create_participant_with_fallback(domain_id, factory, qos);
 }

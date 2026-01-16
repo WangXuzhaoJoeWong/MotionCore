@@ -15,14 +15,14 @@ enum class LogLevel : int { Error = 0, Warn = 1, Info = 2, Debug = 3 };
 LogLevel parse_log_level(std::string_view s, LogLevel def = LogLevel::Info);
 const char* log_level_tag(LogLevel l);
 
-// A lightweight logger intended for both MotionCore internals and Workstation services.
+// 轻量日志组件：同时面向 MotionCore 内部与 Workstation 服务。
 //
-// Output format (single line):
+// 输出格式（单行）：
 //   <prefix><tag> <message> key=value ...
 //
-// - prefix is user-provided (e.g. "[wxz_bt_service] ")
-// - tag is one of [ERR]/[WRN]/[INF]/[DBG]
-// - fields are optional key/value pairs for correlation (e.g. trace_id)
+// - prefix：用户提供的前缀（例如 "[wxz_bt_service] "）
+// - tag： [ERR]/[WRN]/[INF]/[DBG] 之一
+// - fields：可选的 key/value 字段，用于关联分析（例如 trace_id）
 class Logger {
 public:
     using Field = std::pair<std::string_view, std::string_view>;

@@ -13,8 +13,8 @@ namespace wxz::core {
 
 class ByteBufferPool;
 
-// Move-only lease for a reusable byte buffer.
-// The buffer is returned to its originating pool on destruction.
+// 可复用字节缓冲区的 move-only 租约（lease）。
+// lease 析构时会把 buffer 归还到所属的 pool。
 class ByteBufferLease {
 public:
     ByteBufferLease() = default;
@@ -67,9 +67,9 @@ private:
     std::size_t size_{0};
 };
 
-// Fixed-capacity buffer pool.
-// - Preallocates N buffers of size `buffer_capacity`.
-// - try_acquire() is non-blocking and intended to be used on DDS callback threads.
+// 固定容量的 buffer pool。
+// - 预分配 N 个大小为 `buffer_capacity` 的 buffer。
+// - try_acquire() 为非阻塞，设计用于 DDS 回调线程。
 class ByteBufferPool {
 public:
     struct Options {
@@ -79,7 +79,7 @@ public:
 
     explicit ByteBufferPool(Options opts);
 
-    // Non-blocking. Returns empty when pool is exhausted.
+    // 非阻塞：当 pool 耗尽时返回 empty。
     std::optional<ByteBufferLease> try_acquire();
 
     std::size_t capacity_bytes() const;

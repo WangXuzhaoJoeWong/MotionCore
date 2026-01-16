@@ -127,7 +127,7 @@ void ThreadPool::workerLoop(int /*worker_id*/) {
         try {
             task();
         } catch (...) {
-            // Swallow exceptions to keep pool alive.
+            // 吞掉异常以保持线程池存活。
         }
 
         {

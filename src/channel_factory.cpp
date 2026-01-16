@@ -90,7 +90,7 @@ build_shm_channels_from_config(const Config& cfg, bool create) {
             continue;
         }
 
-        // Guardrails (reuse payload guard as slot size cap)
+        // 保护阈值（复用 payload guard 作为 slot_size 上限）
         if (!guardrail_payload(c.shm_slot_size, c.name)) continue;
         try {
             auto ch = std::make_shared<wxz::core::ShmChannel>(c.shm_name, c.shm_capacity, c.shm_slot_size, create);

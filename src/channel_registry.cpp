@@ -16,7 +16,7 @@ void ChannelRegistry::set_fastdds(std::map<std::string, std::shared_ptr<wxz::cor
     std::lock_guard<std::mutex> lock(mutex_);
     fastdds_channels_ = std::move(channels);
 
-    // Minimal registry-level gauges for ops.
+    // 面向运维的最小 registry 级别 gauges。
     wxz::core::metrics().gauge_set("wxz_channel_registry_fastdds_channels", static_cast<double>(fastdds_channels_.size()), {});
 }
 
@@ -24,7 +24,7 @@ void ChannelRegistry::set_shm(std::map<std::string, std::shared_ptr<wxz::core::S
     std::lock_guard<std::mutex> lock(mutex_);
     shm_ = std::move(channels);
 
-    // Minimal registry-level gauges for ops.
+    // 面向运维的最小 registry 级别 gauges。
     wxz::core::metrics().gauge_set("wxz_channel_registry_shm_channels", static_cast<double>(shm_.size()), {});
 }
 
@@ -66,7 +66,7 @@ void ChannelRegistry::log_metrics() const {
     std::string ChannelRegistry::to_json(bool group_by_module) const {
         std::ostringstream oss;
         oss << "{";
-        // FastDDS metrics
+        // FastDDS 指标
         oss << "\"fastdds\":[";
         bool first = true;
         for (const auto& kv : fastdds_channels_) {
@@ -80,7 +80,7 @@ void ChannelRegistry::log_metrics() const {
                 "\"last_publish_duration_ns\":" << ch->last_publish_duration_ns() << "}";
         }
         oss << "],";
-        // Inproc metrics
+        // Inproc 指标
         oss << "\"inproc\":[";
         first = true;
         for (const auto& kv : inproc_) {
@@ -92,7 +92,7 @@ void ChannelRegistry::log_metrics() const {
                 "\"messages_delivered\":" << ch->messages_delivered() << "}";
         }
         oss << "],";
-        // SHM metrics
+        // SHM 指标
         oss << "\"shm\":[";
         first = true;
         for (const auto& kv : shm_) {

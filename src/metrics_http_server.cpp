@@ -114,7 +114,7 @@ void MetricsHttpServer::run_() {
         buf[nread] = '\0';
 
         std::string_view req(buf, static_cast<std::size_t>(nread));
-        // Parse: METHOD SP PATH SP HTTP/...
+        // 解析：METHOD SP PATH SP HTTP/...
         const std::size_t sp1 = req.find(' ');
         const std::size_t sp2 = (sp1 == std::string_view::npos) ? std::string_view::npos : req.find(' ', sp1 + 1);
         const std::string_view method = (sp1 == std::string_view::npos) ? std::string_view{} : req.substr(0, sp1);

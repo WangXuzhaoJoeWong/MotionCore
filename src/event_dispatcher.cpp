@@ -75,7 +75,7 @@ std::string EventDispatcher::chooseLane(const Event &ev) const {
         std::string lane = opts_.router(ev);
         if (lane == "io" || lane == "cpu") return lane;
     }
-    // Default: prefix-based heuristic
+    // 默认：基于前缀的启发式规则
     if (ev.type.rfind("io.", 0) == 0) return "io";
     return "cpu";
 }

@@ -25,19 +25,18 @@ public:
     std::shared_ptr<wxz::core::ShmChannel> shm(const std::string& name);
     std::vector<std::string> list_shm() const;
 
-    // Diagnostics: log current counters for all registered channels.
+    // 诊断：打印所有已注册通道的当前计数器。
     void log_metrics() const;
-    // Structured metrics: JSON string grouped by transport/module.
+    // 结构化指标：按 transport/module 分组输出 JSON 字符串。
     std::string to_json(bool group_by_module) const;
 
-    // Lifecycle helpers: explicitly stop background threads and drop references.
-    // Safe to call multiple times.
+    // 生命周期辅助：显式停止后台线程并释放引用。
+    // 可重复调用（幂等）。
     void stop_all();
     void clear();
 
-    // Subscription lifecycle: bulk-unsubscribe by owner tag (e.g. plugin instance pointer).
-    // This is designed to be called before dlclose(plugin_so) to ensure no std::function
-    // created in the plugin remains alive in core.
+    // 订阅生命周期：按 owner tag 批量取消订阅（例如插件实例指针）。
+    // 设计目标：在 dlclose(plugin_so) 之前调用，确保 core 中不会残留由插件创建的 std::function。
     void unsubscribe_owner(void* owner);
 
 private:

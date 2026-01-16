@@ -188,7 +188,7 @@ void ShmChannel::stop() {
 
 void ShmChannel::dispatch_loop() {
     while (running_.load(std::memory_order_relaxed)) {
-        // wait for a message
+        // 等待消息
         struct timespec ts;
         clock_gettime(CLOCK_REALTIME, &ts);
         ts.tv_nsec += 50 * 1000 * 1000; // 50ms
@@ -201,7 +201,7 @@ void ShmChannel::dispatch_loop() {
         std::uint32_t head = hdr_->head.load(std::memory_order_acquire);
         std::uint32_t cap = hdr_->capacity;
         if (tail == head) {
-            continue; // nothing
+            continue; // 无消息
         }
         std::uint32_t idx = tail & (cap - 1);
         auto sv = slot(idx);

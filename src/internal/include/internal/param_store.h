@@ -1,4 +1,4 @@
-// ParamStore: thread-safe in-memory parameter snapshot for BT nodes and other modules.
+// ParamStore：线程安全的内存参数快照，供 BT 节点等模块使用。
 #pragma once
 
 #include <string>

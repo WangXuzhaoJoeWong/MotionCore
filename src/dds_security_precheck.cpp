@@ -65,7 +65,7 @@ std::filesystem::path normalize_file_uri_to_path(std::string value, const std::f
     value = trim_copy(std::move(value));
     if (value.rfind("file:", 0) == 0) {
         value.erase(0, 5);
-        // Handle common file URI forms: file:/abs/path and file:///abs/path
+        // 处理常见的 file URI 形式：file:/abs/path 与 file:///abs/path
         if (value.rfind("///", 0) == 0) {
             value.erase(0, 2); // "///home" -> "/home"
         }

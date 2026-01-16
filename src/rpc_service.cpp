@@ -48,7 +48,7 @@ inline std::string build_error_response(std::string_view op,
 inline std::string_view json_get_string_view(const nlohmann::json& obj, const char* key) {
     auto it = obj.find(key);
     if (it == obj.end() || !it->is_string()) return {};
-    // nlohmann::json stores string internally; view lifetime ties to json value.
+    // nlohmann::json 在内部保存 string；view 的生命周期绑定到对应的 json value。
     return it->get_ref<const std::string&>();
 }
 
@@ -120,10 +120,10 @@ public:
     }
 
     void stop() {
-        // Teardown must be safe even if callbacks are in-flight on executor/strand threads.
-        // - First, prevent new work from entering (stop request subscription).
-        // - Then wait for in-flight callbacks to drain.
-        // - Finally stop/reset reply publisher.
+        // Teardown 必须安全：即便 executor/strand 线程上仍有回调正在执行。
+        // - 首先阻止新工作进入（停止 request 订阅）。
+        // - 然后等待 in-flight 回调退出。
+        // - 最后停止/重置 reply publisher。
         {
             std::lock_guard<std::mutex> lk(mu_);
             if (!started_) return;
@@ -249,7 +249,7 @@ public:
     std::optional<FastddsChannel> req_;
     std::optional<FastddsChannel> rep_;
 
-    // Stop safety: allow stop() to wait until no callbacks are using rep_.
+    // 停止安全：允许 stop() 等待直到没有回调在使用 rep_。
     std::atomic<bool> stopping_{false};
     std::atomic<std::uint32_t> callbacks_inflight_{0};
     std::mutex cv_mu_;

@@ -13,13 +13,13 @@ struct PeerInfo {
     std::string qos;
 };
 
-// Simple HTTP-based discovery client; sends register + heartbeat JSON payloads.
+// 简单的基于 HTTP 的发现客户端：发送 register + heartbeat 的 JSON payload。
 class DiscoveryClient {
 public:
     DiscoveryClient() = default;
     ~DiscoveryClient();
 
-    // Starts heartbeat thread if configuration is valid.
+    // 若配置有效则启动 heartbeat 线程。
     void start(const std::string& endpoint,
                int heartbeat_period_ms,
                int ttl_ms,
@@ -27,18 +27,18 @@ public:
                const std::string& node_zone,
                const std::vector<std::string>& node_endpoints);
 
-    // Stops heartbeat thread.
+    // 停止 heartbeat 线程。
     void stop();
 
     bool isRunning() const { return running_; }
 
-    // Returns last fetched peers list (endpoints) with role/zone/qos filtering.
+    // 返回最近一次拉取到的 peers 列表（按 role/zone/qos 过滤后，仅 endpoint）。
     std::vector<std::string> getPeers() const;
 
-    // Returns raw peer metadata (unfiltered).
+    // 返回原始 peer 元数据（不做过滤）。
     std::vector<PeerInfo> getPeerInfos() const;
 
-    // Optional manual refresh of peers (GET) outside the heartbeat loop.
+    // 可选：在 heartbeat 循环之外手动刷新 peers（GET）。
     void refreshPeers();
 
 private:

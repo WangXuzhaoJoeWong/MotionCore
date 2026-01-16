@@ -99,8 +99,8 @@ wxz::core::ChannelQoS channel_qos_from_legacy(const TopicQosProfile& profile) {
 }
 
 std::vector<std::uint8_t> serialize_event_dto_to_cdr_bytes(const EventDTO& dto) {
-    // Similar to the legacy DDS EventDTO type: store encapsulation + fields.
-    // This allows robust decode across endianness.
+    // 类似于旧版 DDS EventDTO 类型：存储封装信息（encapsulation）+ 各字段。
+    // 这可以在不同字节序之间稳健解码。
     const std::size_t estimate =
         4 +
         4 + dto.schema_id.size() +
@@ -133,7 +133,7 @@ std::vector<std::uint8_t> serialize_event_dto_to_cdr_bytes(const EventDTO& dto) 
 
 bool deserialize_event_dto_from_cdr_bytes(const std::uint8_t* data, std::size_t size, EventDTO& out) {
     if (!data || size == 0) return false;
-    // FastBuffer expects a mutable buffer; copy for safe decode.
+    // FastBuffer 需要可写缓冲区；这里拷贝一份用于安全解码。
     std::vector<std::uint8_t> tmp(data, data + size);
     eprosima::fastcdr::FastBuffer fastbuffer(reinterpret_cast<char*>(tmp.data()), tmp.size());
     eprosima::fastcdr::Cdr deser(fastbuffer);
@@ -362,12 +362,12 @@ private:
 FastDDSCommunicator::Impl::Impl() {
     fallback_enabled_ = fallback_allowed();
     domain_id_ = wxz::core::getenv_int("WXZ_DOMAIN_ID", 0);
-    // Keep this legacy adapter generous by default to avoid surprising drops on larger payloads.
+    // 默认把这个 legacy 适配器的上限放宽，避免大 payload 时出现意外丢弃。
     max_payload_ = static_cast<std::size_t>(std::max(4096, wxz::core::getenv_int("WXZ_LEGACY_COMM_MAX_PAYLOAD", 65536)));
 }
 
 FastDDSCommunicator::Impl::~Impl() {
-    // Best-effort: stop subscriptions first to avoid callbacks racing teardown.
+    // 尽力而为：先停止订阅，避免回调与 teardown 竞争。
     for (auto& kv : topics_) {
         kv.second.sub.reset();
         if (kv.second.channel) kv.second.channel->stop();
@@ -397,7 +397,7 @@ void FastDDSCommunicator::Impl::send(const std::string& topic, const std::string
     try {
         auto& e = ensure_topic_channel(topics_, topic);
         (void)e;
-        // Publish raw bytes. This is aligned with wxz::core::FastddsChannel governance.
+        // 发布原始字节流；这与 wxz::core::FastddsChannel 的治理约定保持一致。
         e.channel->publish(reinterpret_cast<const std::uint8_t*>(message.data()), message.size());
     } catch (...) {
         if (fallback_enabled_) {
@@ -501,7 +501,7 @@ FastDDSCommunicator::Impl::ChannelTopicEntry& FastDDSCommunicator::Impl::ensure_
     }
     entry.capacity = (qos.history == 0) ? 32 : std::max<std::size_t>(1, qos.history);
 
-    // Subscribe immediately so receive() can be a simple pop().
+    // 立即订阅，让 receive() 只需做简单 pop()。
     entry.channel = std::make_unique<wxz::core::FastddsChannel>(domain_id_, topic, qos, max_payload_);
     entry.sub = entry.channel->subscribe_scoped([
         &entry

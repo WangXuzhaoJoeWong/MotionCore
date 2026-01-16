@@ -72,7 +72,7 @@ std::optional<ParamValue> parseFromString(const std::string& s, const std::strin
             }
             return std::nullopt;
         }
-        // string or unknown
+        // string 或未知类型
         return ParamValue{s};
     } catch (...) {
         return std::nullopt;
@@ -207,7 +207,7 @@ public:
             }
         }
 
-        // Immediately emit current value if available (helps deterministic bootstrapping).
+        // 如果当前值可用，则立即回调一次（有助于确定性的启动/初始化）。
         if (current.has_value()) {
             observer->onParamChanged(key, *current);
         }
@@ -233,7 +233,7 @@ public:
             return;
         }
 
-        // Apply values only for declared keys and with type parsing.
+        // 仅对已声明的 key 应用快照，并进行类型解析。
         std::vector<std::pair<std::string, ParamValue>> to_notify;
         {
             std::lock_guard<std::mutex> lock(mu_);

@@ -11,8 +11,8 @@
 
 namespace wxz::core {
 
-// Strand: serializes tasks onto an underlying Executor.
-// Guarantees FIFO execution order for tasks posted through the same Strand.
+// Strand：基于底层 Executor 将任务串行化执行。
+// 通过同一个 Strand 投递的任务保证按 FIFO 顺序执行。
 class Strand {
 public:
     explicit Strand(Executor& ex) : ex_(&ex) {}

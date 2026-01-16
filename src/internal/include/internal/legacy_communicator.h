@@ -1,22 +1,21 @@
 #ifndef MOTIONCORE_INTERNAL_LEGACY_COMMUNICATOR_H
 #define MOTIONCORE_INTERNAL_LEGACY_COMMUNICATOR_H
 
-// NOTE (legacy/internal):
-// This header defines the historical ICommunicator/FastDDSCommunicator abstraction.
-// It is retained only for platform-internal legacy wire protocols (e.g. internal ParamServer)
-// and a small set of compatibility/regression tests.
+// 注意（legacy/internal）：
+// 该头文件定义了历史遗留的 ICommunicator/FastDDSCommunicator 抽象。
+// 仅用于平台内部的 legacy wire 协议（例如内部 ParamServer）以及少量兼容/回归测试。
 //
-// New business/service code MUST use wxz::core::{FastddsChannel,InprocChannel,ShmChannel}.
-// See docs/ref/推荐用法-P0-通信抽象.md.
+// 新的业务/服务代码必须使用 wxz::core::{FastddsChannel,InprocChannel,ShmChannel}。
+// 参考 docs/ref/推荐用法-P0-通信抽象.md。
 //
-// Hardening switches for downstream/business code:
-// - Define WXZ_FORBID_LEGACY_COMMUNICATION=1 to make including this header a compile-time error.
-// - Define WXZ_DEPRECATE_LEGACY_COMMUNICATION=1 to mark legacy types with [[deprecated]] warnings.
+// 面向下游/业务代码的加固开关：
+// - 定义 WXZ_FORBID_LEGACY_COMMUNICATION=1：包含该头文件会触发编译期错误。
+// - 定义 WXZ_DEPRECATE_LEGACY_COMMUNICATION=1：为 legacy 类型增加 [[deprecated]] 警告。
 //
-// Platform-internal boundary enforcement:
-// - Define WXZ_ENFORCE_LEGACY_COMMUNICATION_INTERNAL_ONLY=1 to require an explicit allow-list macro
-//   (WXZ_LEGACY_COMMUNICATION_ALLOWED=1) for any translation unit that includes this header.
-//   This is intended to keep legacy usage confined to platform internal code and tests.
+// 平台内部边界约束：
+// - 定义 WXZ_ENFORCE_LEGACY_COMMUNICATION_INTERNAL_ONLY=1：要求任何包含该头文件的编译单元
+//   显式加入 allow-list 宏（WXZ_LEGACY_COMMUNICATION_ALLOWED=1）。
+//   该机制用于把 legacy 使用限制在平台内部代码与测试中。
 
 #if defined(WXZ_FORBID_LEGACY_COMMUNICATION)
 #error "Legacy ICommunicator/FastDDSCommunicator is forbidden. Use wxz::core::{FastddsChannel,InprocChannel,ShmChannel}. See docs/ref/推荐用法-P0-通信抽象.md"
@@ -51,15 +50,15 @@
 #include <vector>
 
 struct TopicQosProfile {
-    std::string reliability{"reliable"};    // reliable | best_effort
-    std::string history{"keep_last"};       // keep_last | keep_all
-    int depth{8};                            // used when keep_last
-    std::string durability{"volatile"};     // volatile | transient_local
+    std::string reliability{"reliable"};    // 可靠性：reliable | best_effort
+    std::string history{"keep_last"};       // 历史策略：keep_last | keep_all
+    int depth{8};                            // keep_last 时使用
+    std::string durability{"volatile"};     // 持久性：volatile | transient_local
     std::optional<int64_t> deadline_ns;
     std::optional<int64_t> latency_budget_ns;
     std::optional<int64_t> liveliness_lease_ns;
-    std::string liveliness{"automatic"};    // automatic | manual_by_topic
-    std::string ownership{"shared"};        // shared | exclusive
+    std::string liveliness{"automatic"};    // 活性：automatic | manual_by_topic
+    std::string ownership{"shared"};        // 所有权：shared | exclusive
     std::optional<int> ownership_strength;
     std::optional<int64_t> time_based_filter_ns;
     std::optional<int64_t> lifespan_ns;

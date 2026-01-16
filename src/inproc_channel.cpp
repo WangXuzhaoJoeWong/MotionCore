@@ -10,7 +10,7 @@
 
 namespace wxz::core {
 
-// BufferHandle ---------------------------------------------------------------
+// BufferHandle（缓冲句柄）----------------------------------------------------
 
 void BufferHandle::commit(std::size_t size) {
     size_ = size;
@@ -30,7 +30,7 @@ void BufferHandle::release() {
     size_ = 0;
 }
 
-// BufferPool -----------------------------------------------------------------
+// BufferPool（缓冲池）--------------------------------------------------------
 
 BufferPool::BufferPool(std::size_t capacity, std::size_t buffer_bytes)
     : nodes_(capacity), free_head_(0), buffer_bytes_(buffer_bytes) {
@@ -82,10 +82,10 @@ void BufferPool::set_committed_size(std::size_t idx, std::size_t size) {
     nodes_[idx].len.store(size, std::memory_order_release);
 }
 
-// IndexQueue -----------------------------------------------------------------
+// IndexQueue（索引队列）------------------------------------------------------
 
 IndexQueue::IndexQueue(std::size_t capacity) : buffer_(capacity), mask_(capacity - 1), capacity_(capacity) {
-    // require power-of-two capacity for mask
+    // mask 计算要求 capacity 为 2 的幂
     if ((capacity & (capacity - 1)) != 0) {
         throw std::invalid_argument("IndexQueue capacity must be power of two");
     }
@@ -144,7 +144,7 @@ std::size_t IndexQueue::dequeue_batch(std::size_t* out, std::size_t max_items) {
     return count;
 }
 
-// InprocChannel --------------------------------------------------------------
+// InprocChannel（进程内通道）-------------------------------------------------
 
 InprocChannel::InprocChannel(std::size_t capacity, std::size_t buffer_bytes, const ChannelQoS& qos)
     : qos_(qos), pool_(capacity, buffer_bytes), queue_(capacity) {}
@@ -156,11 +156,11 @@ BufferHandle InprocChannel::allocate() { return pool_.acquire(); }
 bool InprocChannel::publish(BufferHandle&& h) {
     if (!h.valid()) return false;
     std::size_t idx = h.idx_;
-    // the size may already be committed via handle.commit(); ensure not zero unless intended
+    // size 可能已通过 handle.commit() 提交；除非有意为之，确保不是 0
     if (pool_.committed_size(idx) == 0) {
         pool_.set_committed_size(idx, h.size());
     }
-    // ownership transfers to queue; prevent double release
+    // 所有权转移到队列；避免重复释放
     h.pool_ = nullptr;
     h.data_ = nullptr;
     h.capacity_ = 0;
@@ -270,7 +270,7 @@ void InprocChannel::dispatch_loop() {
             pool_.release(idx);
         }
     }
-    // drain remaining items to release buffers
+    // 清空剩余项以释放缓冲区
     std::size_t idx = 0;
     while (queue_.dequeue(idx)) {
         pool_.release(idx);

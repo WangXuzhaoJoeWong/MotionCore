@@ -55,7 +55,7 @@ public:
     bool set(const std::string& key, const ParamValue& value) override;
     void subscribe(const std::string& key, IParamObserver* observer) override;
 
-    // 可选：持久化快照（key=value 行）。用于确定性启动（deterministic bootstrapping）。
+    // 可选：持久化快照（key=value 行）。用于确定性启动（确定性引导启动）。
     void setSnapshotPath(std::string path);
     void loadSnapshot();
     void saveSnapshot() const;

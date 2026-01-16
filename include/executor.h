@@ -16,15 +16,15 @@
 
 namespace wxz::core {
 
-// Minimal fixed-size executor.
-// - post(): enqueue a task for execution by worker threads.
-// - stop(): stop accepting new tasks and drain queued tasks.
+// 最小固定大小的执行器。
+// - post()：将任务入队，由工作线程执行。
+// - stop()：停止接收新任务，并尽量把队列里的任务执行完后退出。
 class Executor {
 public:
     struct Options {
-        // threads:
-        // - >0: spawn N worker threads on start().
-        // - =0: do not spawn threads; user drives execution via spin()/spin_once().
+        // threads：
+        // - >0：start() 时创建 N 个工作线程。
+        // - =0：不创建线程；由用户通过 spin()/spin_once() 驱动执行。
         std::size_t threads{1};
         std::size_t max_queue{1024};
         bool block_when_full{true};
@@ -50,16 +50,16 @@ public:
         return true;
     }
 
-    // Drive queued tasks on the calling thread until stop() is requested.
-    // Intended for ROS2-like "single spin thread" usage when opts_.threads==0.
+    // 在当前调用线程上驱动执行队列任务，直到请求 stop()。
+    // 用于类 ROS2 的“单 spin 线程”用法（opts_.threads==0）。
     void spin() {
         if (!running_.load() || stopping_.load()) return;
         worker_loop();
     }
 
-    // Spin at most one task.
-    // - Returns true if a task was executed.
-    // - Returns false on timeout / no task / stopping.
+    // 最多执行一个任务。
+    // - 若本次确实执行了一个任务则返回 true。
+    // - 超时/无任务/正在停止时返回 false。
     template <class Rep, class Period>
     bool spin_once(const std::chrono::duration<Rep, Period>& timeout) {
         if (!running_.load() || stopping_.load()) return false;

@@ -31,7 +31,7 @@ void FaultRecoveryExecutor::start() {
     constexpr std::size_t kMaxPayload = 4096;
     sub_ = std::make_unique<FastddsChannel>(domain_, topic_, qos, kMaxPayload, /*enable_pub=*/false, /*enable_sub=*/true);
 
-    // Pre-register minimal metrics so /metrics has stable keys.
+    // 预注册最小指标，确保 /metrics 中的 key 稳定。
     metrics().gauge_set("wxz_fault_recovery_enabled", 1.0, {});
     metrics().counter_add("wxz_fault_recovery_actions_total", 0.0, {{"action", "degrade"}});
     metrics().counter_add("wxz_fault_recovery_actions_total", 0.0, {{"action", "restart"}});
@@ -51,7 +51,7 @@ void FaultRecoveryExecutor::start_on(Executor& ex) {
     constexpr std::size_t kMaxPayload = 4096;
     sub_ = std::make_unique<FastddsChannel>(domain_, topic_, qos, kMaxPayload, /*enable_pub=*/false, /*enable_sub=*/true);
 
-    // Pre-register minimal metrics so /metrics has stable keys.
+    // 预注册最小指标，确保 /metrics 中的 key 稳定。
     metrics().gauge_set("wxz_fault_recovery_enabled", 1.0, {});
     metrics().counter_add("wxz_fault_recovery_actions_total", 0.0, {{"action", "degrade"}});
     metrics().counter_add("wxz_fault_recovery_actions_total", 0.0, {{"action", "restart"}});

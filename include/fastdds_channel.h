@@ -71,24 +71,24 @@ public:
     bool publish(const std::uint8_t* data, std::size_t size);
     void subscribe(Handler handler);
 
-    // ROS2-like: do not invoke user handler on the FastDDS callback thread.
-    // Instead, copy the message bytes and dispatch the callback onto the given scheduler.
-    // Note: For allocation-free ingress, prefer subscribe_leased_on().
+    // 类 ROS2 约定：不要在 FastDDS 的回调线程里直接调用用户 handler。
+    // 这里会先拷贝消息字节，然后把回调投递到指定的调度器上执行。
+    // 注意：如果希望接收侧做到“每条消息不分配内存”，优先使用 subscribe_leased_on()。
     void subscribe_on(Executor& ex, Handler handler);
     void subscribe_on(Strand& strand, Handler handler);
 
-    // Subscribe with a reusable buffer pool.
-    // Semantics:
-    // - FastDDS callback thread copies bytes into a pooled buffer (no per-message allocation).
-    // - Handler is invoked with a move-only lease; destroying the lease returns buffer to the pool.
-    // - If the pool is exhausted, the leased handler is not invoked.
-    // Note: only a single leased handler is supported per channel.
+    // 使用可复用的缓冲池进行订阅。
+    // 语义：
+    // - FastDDS 回调线程把字节拷贝到池化 buffer 中（避免每条消息一次分配）。
+    // - Handler 以 move-only 的 lease 形式拿到数据；lease 析构时 buffer 自动归还到池里。
+    // - 如果缓冲池耗尽，则不会调用 leased handler。
+    // 注意：每个 channel 只支持一个 leased handler。
     void subscribe_leased(ByteBufferPool& pool, LeasedHandler handler);
 
-    // ROS2-like leased subscribe:
-    // - FastDDS callback thread copies into pooled buffer.
-    // - The lease is then dispatched onto the given scheduler.
-    // - If the pool is exhausted, the callback is dropped (and counted).
+    // 类 ROS2 的 leased subscribe：
+    // - FastDDS 回调线程先拷贝到池化 buffer。
+    // - 然后把 lease 投递到指定调度器上执行。
+    // - 如果缓冲池耗尽，则丢弃该回调（并计数）。
     void subscribe_leased_on(ByteBufferPool& pool, Executor& ex, LeasedHandler handler);
     void subscribe_leased_on(ByteBufferPool& pool, Strand& strand, LeasedHandler handler);
 
@@ -96,7 +96,7 @@ public:
     // owner 为可选 tag（例如插件实例指针），用于批量清理。
     Subscription subscribe_scoped(Handler handler, void* owner = nullptr);
 
-    // ROS2-like scoped subscribe with dispatch.
+    // 类 ROS2 的“带调度投递”的 scoped subscribe。
     Subscription subscribe_scoped_on(Executor& ex, Handler handler, void* owner = nullptr);
     Subscription subscribe_scoped_on(Strand& strand, Handler handler, void* owner = nullptr);
 
@@ -111,9 +111,9 @@ public:
     std::uint64_t last_publish_duration_ns() const { return last_publish_duration_ns_.load(); }
     std::uint64_t messages_received() const { return messages_received_.load(); }
 
-    // Drops
-    // - drop_pool_exhausted: leased subscribe requested but no buffer available.
-    // - drop_dispatch_rejected: dispatch target rejected (executor/strand stopped or queue full).
+    // 丢弃统计（Drops）
+    // - drop_pool_exhausted：请求 leased subscribe，但池里无可用 buffer。
+    // - drop_dispatch_rejected：投递目标拒绝（executor/strand 已停止或队列已满）。
     std::uint64_t recv_drop_pool_exhausted() const { return recv_drop_pool_exhausted_.load(); }
     std::uint64_t recv_drop_dispatch_rejected() const { return recv_drop_dispatch_rejected_.load(); }
 
@@ -132,11 +132,11 @@ private:
     std::string topic_name_;
     std::size_t max_payload_{0};
 
-    // Protect DDS entity pointers during publish/teardown.
-    // Without this, a timer thread may call publish() while cleanup() deletes the writer/participant.
+    // 在 publish/teardown 期间保护 DDS 实体指针。
+    // 没有该锁的话，可能出现：定时线程还在 publish()，同时 cleanup() 删除 writer/participant。
     mutable std::mutex entity_mutex_;
 
-    // Whether construction completed successfully (used to decide teardown strategy).
+    // 构造是否成功（用于选择 teardown 策略）。
     bool constructed_ok_{false};
 
     eprosima::fastdds::dds::DomainParticipant* participant_{nullptr};

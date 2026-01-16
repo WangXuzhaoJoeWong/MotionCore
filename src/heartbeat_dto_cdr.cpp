@@ -9,7 +9,7 @@ bool encode_heartbeat_dto_cdr(const ::HeartbeatDTO& dto,
                              std::size_t initial_reserve) {
     CdrSerializer ser(out, initial_reserve);
 
-    // Field order MUST match dto/HeartbeatDTO.idl.
+    // 字段顺序必须与 dto/HeartbeatDTO.idl 一致。
     if (!ser.write_uint32(dto.version)) return false;
     if (!ser.write_string(dto.node)) return false;
     if (!ser.write_uint64(dto.timestamp)) return false;
@@ -21,7 +21,7 @@ bool encode_heartbeat_dto_cdr(const ::HeartbeatDTO& dto,
 bool decode_heartbeat_dto_cdr(const std::vector<std::uint8_t>& buf, ::HeartbeatDTO& out) {
     CdrDeserializer de(buf);
 
-    // Field order MUST match dto/HeartbeatDTO.idl.
+    // 字段顺序必须与 dto/HeartbeatDTO.idl 一致。
     if (!de.read_uint32(out.version)) return false;
     if (!de.read_string(out.node)) return false;
     if (!de.read_uint64(out.timestamp)) return false;

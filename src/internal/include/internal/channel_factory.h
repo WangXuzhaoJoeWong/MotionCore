@@ -8,7 +8,7 @@
 #include "fastdds_channel.h"
 #include "shm_channel.h"
 
-// Factory helpers to build channels from configuration.
+// 从配置构建 channels 的工厂辅助函数。
 namespace channel_factory {
 
 std::map<std::string, std::shared_ptr<wxz::core::FastddsChannel>>

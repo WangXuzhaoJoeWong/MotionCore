@@ -27,19 +27,19 @@ struct ThreadPoolOptions {
     std::function<void(const ThreadPoolMetrics &)> metrics_hook;
 };
 
-// Bounded thread pool with optional metrics hook and backpressure control.
+// 有界线程池：支持可选 metrics hook，并提供背压控制。
 class ThreadPool {
 public:
     ThreadPool(std::string module_key, ThreadPoolOptions opts, int default_threads, int max_threads);
     ~ThreadPool();
 
-    // Start worker threads; returns false if already running.
+    // 启动 worker 线程；如果已在运行则返回 false。
     bool start();
 
-    // Stop workers and drain queue. Safe to call multiple times.
+    // 停止 worker 并清空队列。可重复调用（幂等）。
     void stop();
 
-    // Submit a task. Returns false if stopped or queue rejected the task.
+    // 提交任务：若已停止或队列拒绝该任务则返回 false。
     bool submit(std::function<void()> fn);
 
     bool running() const { return running_.load(); }
@@ -66,13 +66,13 @@ private:
     size_t tasks_running_{0};
 };
 
-// IO-oriented pool defaults to modest size; honor config key `threading.io_pool`.
+// IO 取向线程池：默认规模较小；遵循配置项 `threading.io_pool`。
 class IoThreadPool : public ThreadPool {
 public:
     explicit IoThreadPool(ThreadPoolOptions opts = {});
 };
 
-// CPU-oriented pool defaults to hardware_concurrency; honor config key `threading.cpu_pool`.
+// CPU 取向线程池：默认使用 hardware_concurrency；遵循配置项 `threading.cpu_pool`。
 class CpuThreadPool : public ThreadPool {
 public:
     explicit CpuThreadPool(ThreadPoolOptions opts = {});
